@@ -23,20 +23,40 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.2.7")
 }
 
+val sourceFolder = project.rootDir.resolve("src/jbake")
+val destinationFolder = project.buildDir.resolve("jbake")
+val docsSubFolder = rootProject.rootDir.resolve("docs")
+
 val bake by tasks.registering {
     group = "build"
     doFirst {
-        val source = project.rootDir.resolve("src/jbake")
-        val destination = project.buildDir.resolve("jbake").apply {
-          mkdir()
-        }
-        Oven(source, destination, true).apply {
+        destinationFolder.mkdir()
+        Oven(sourceFolder, destinationFolder, true).apply {
             setupPaths()
             bake()
         }
     }
 }
-application.mainClass.set("MainKt")
-tasks.named("run", JavaExec::class) {
-    args = listOf(project.buildDir.resolve("jbake").absolutePath)
+
+val servePreview by tasks.registering(JavaExec::class) {
+    group = "serve"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("MainKt")
+    args = listOf(destinationFolder.absolutePath)
+}
+val serveRelease by tasks.registering(JavaExec::class) {
+    group = "serve"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("MainKt")
+    args = listOf(docsSubFolder.absolutePath, "8081")
+}
+
+val release by tasks.registering {
+    group = "release"
+    dependsOn(bake)
+    doFirst {
+        docsSubFolder.deleteRecursively()
+        docsSubFolder.mkdir()
+        destinationFolder.copyRecursively(docsSubFolder)
+    }
 }

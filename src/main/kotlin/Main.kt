@@ -23,8 +23,8 @@ fun Application.main() {
 }
 
 fun main(args: Array<String>) {
-    val port = 8080
     val baseDir = if (args.isNotEmpty()) File(args[0]).canonicalFile else File(".").canonicalFile
+    val port = if (args.size > 1) args[1].toInt() else 8080
 
     create(InetSocketAddress(port), 0).run {
         createContext("/") { exchange ->
