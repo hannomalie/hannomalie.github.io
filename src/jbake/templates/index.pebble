@@ -1,0 +1,51 @@
+{% extends "layout.pebble" %}
+{% block main %}
+
+{% set firstPost = published_posts | first %}
+<article class="post featured">
+    <header class="major">
+        <span class="date">April 25, 2017</span>
+        <h2><a href="#">{{ firstPost.headline }}</a></h2>
+        <p>{{ firstPost.subheadline }}</p>
+    </header>
+    <a href="#" class="image main"><img src="images/pic01.jpg" alt="" /></a>
+    <p>{{ firstPost.summary }}</p>
+    <ul class="actions special">
+        <li><a href="{{ post.uri }}" class="button">full story</a></li>
+    </ul>
+</article>
+<section class="posts">
+{% set allButFirstPosts = published_posts | slice(1, published_posts.size) %}
+{% for post in allButFirstPosts %}
+    <article>
+        <header>
+            <span class="date">April 24, 2017</span>
+            <h2><a href="#">Sed magna<br />
+            ipsum faucibus</a></h2>
+        </header>
+        <a href="#" class="image fit"><img src="images/pic02.jpg" alt="" /></a>
+        <p>{{ post.summary }}</p>
+        <ul class="actions special">
+            <li><a href="{{ post.uri }}" class="button">full story</a></li>
+        </ul>
+    </article>
+{% else %}
+    <p> Wow, such empty! </p>
+{% endfor %}
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="pagination">
+        <!--<a href="#" class="previous">Prev</a>-->
+        <a href="#" class="page active">1</a>
+        <a href="#" class="page">2</a>
+        <a href="#" class="page">3</a>
+        <span class="extra">&hellip;</span>
+        <a href="#" class="page">8</a>
+        <a href="#" class="page">9</a>
+        <a href="#" class="page">10</a>
+        <a href="#" class="next">Next</a>
+    </div>
+</footer>
+{% endblock %}
