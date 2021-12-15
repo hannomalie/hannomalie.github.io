@@ -1,0 +1,11 @@
+title=Terraform vars for gradle exec task
+date=2021-08-10
+type=post
+tags=gradle,terraform,exec
+status=published
+headline=How to pass multiple vars to terraform command in gradle exec task
+subheadline=As if it was easy!
+summary=It took me surprisingly much time to find out how to do that ....
+~~~~~~
+I can't believe I wasn't able to find a single example on the internet about how to use the <b>terraform</b> executable with <i>Java ProcessBuilder, Runtime.exec, Gradle's Exec task</i> or anything else. <b>How hard can it be</b> might be your question. The problem is that it's not to intuitive and easy how to pass args when not just directly typing everything by hand on the shell directly.<br><br>In my case, I needed to pass mutliple var options into a <i>terraform plan</i> command. On the command line, this may look like <br><blockquote>terraform plan -var foo=bar -var bar=baz -var-file=variables.prod.tfvars</blockquote><br> Or as described in <a href="https://www.terraform.io/docs/language/values/variables.html#variables-on-the-command-line">the official documentation</a>, it could be <br><br><blockquote>terraform apply -var="image_id=ami-abc123"</blockquote> or <br><br><blockquote>terraform apply -var='image_id_list=["ami-abc123","ami-def456"]' -var="instance_type=t2.micro"</blockquote><br> There is <a href="https://www.terraform.io/docs/cli/commands/plan.html#input-variables-on-the-command-line">even more documentation</a> in order to make this thing work across different operating systems.<br>What struck me was apparently the whitespace between <i>-var</i> and the key value pair itself. Took me round about an hour to figure out this is the correct way to feed a command into a Gradle Exec task (Kotlin DSL ahead):<br><br><iframe src="https://pl.kotl.in/-5SFERD8_" style="width: 550px;
+    height: 250px;"></iframe><br><br>Mind that every var requires you to pass in an arg of <i>-var</i> and an arg of the key value pair itself.
