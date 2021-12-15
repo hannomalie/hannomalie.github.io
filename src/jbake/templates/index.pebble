@@ -15,13 +15,12 @@
     </ul>
 </article>
 <section class="posts">
-{% set allButFirstPosts = published_posts | slice(1, published_posts.size) %}
-{% for post in allButFirstPosts %}
+{% set xOlderPosts = published_posts | slice(1, min(published_posts.size, 5)) %}
+{% for post in xOlderPosts %}
     <article>
         <header>
             <span class="date">April 24, 2017</span>
-            <h2><a href="#">Sed magna<br />
-            ipsum faucibus</a></h2>
+            <h2><a href="{{ post.uri }}">{{ post.headline }}</a></h2>
         </header>
         <a href="#" class="image fit"><img src="images/pic02.jpg" alt="" /></a>
         <p>{{ post.summary }}</p>
@@ -37,18 +36,7 @@
 <!-- Footer -->
 <footer>
     <ul class="actions special">
-        <li><a href="./archive" class="button">Old stories in the archive</a></li>
+        <li><a href="{{ content.rootpath }}archive.html" class="button">Old stories in the archive</a></li>
     </ul>
-    <!--div class="pagination">
-        <a href="#" class="previous">Prev</a>
-        <a href="#" class="page active">1</a>
-        <a href="#" class="page">2</a>
-        <a href="#" class="page">3</a>
-        <span class="extra">&hellip;</span>
-        <a href="#" class="page">8</a>
-        <a href="#" class="page">9</a>
-        <a href="#" class="page">10</a>
-        <a href="#" class="next">Next</a>
-    </div-->
 </footer>
 {% endblock %}

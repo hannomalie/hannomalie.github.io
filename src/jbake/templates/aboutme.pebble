@@ -1,1 +1,13 @@
 {% extends "layout.pebble" %}
+{% block navigation %}
+<nav id="nav">
+    <ul class="links">
+        <li><a href="{{ content.rootpath }}index.html">Blog</a></li>
+        <li><a href="{{ content.rootpath }}archive.html">Archive</a></li>
+        <li class="active"><a href="{{ content.rootpath }}aboutme.html">About me</a></li>
+    </ul>
+</nav>
+{% endblock %}
+{% block main %}
+{{ content.body | raw }}
+{% endblock %}

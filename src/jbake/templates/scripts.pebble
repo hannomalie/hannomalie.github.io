@@ -1,0 +1,7 @@
+<script src="{{ content.rootpath }}assets/js/jquery.min.js"></script>
+<script src="{{ content.rootpath }}assets/js/jquery.scrollex.min.js"></script>
+<script src="{{ content.rootpath }}assets/js/jquery.scrolly.min.js"></script>
+<script src="{{ content.rootpath }}assets/js/browser.min.js"></script>
+<script src="{{ content.rootpath }}assets/js/breakpoints.min.js"></script>
+<script src="{{ content.rootpath }}assets/js/util.js"></script>
+<script src="{{ content.rootpath }}assets/js/main.js"></script>

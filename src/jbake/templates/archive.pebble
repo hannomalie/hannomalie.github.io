@@ -1,0 +1,28 @@
+{% extends "layout.pebble" %}
+{% block navigation %}
+<nav id="nav">
+    <ul class="links">
+        <li><a href="{{ content.rootpath }}index.html">Blog</a></li>
+        <li class="active"><a href="{{ content.rootpath }}archive.html">Archive</a></li>
+        <li><a href="{{ content.rootpath }}aboutme.html">About me</a></li>
+    </ul>
+</nav>
+{% endblock %}
+{% block main %}
+<ul>
+{% for post in published_posts %}
+    </li>
+        <article style="padding-bottom:50px;">
+            <header>
+                <span class="date">April 24, 2017</span>
+                <h4><a href="{{ content.rootpath }}{{ post.uri }}">{{ post.headline }}</a></h4>
+            </header>
+            <a href="{{ content.rootpath }}{{ post.uri }}">{{ post.subheadline }} ...</a>
+        </article>
+    </li>
+{% else %}
+    <p> Wow, such empty! </p>
+{% endfor %}
+</ul>
+
+{% endblock %}

@@ -4,6 +4,4 @@ type=aboutme
 tags=weekly links, java
 status=published
 ~~~~~~
-{% block main %}
-<p>Coming soon...</p>
-{% endblock %}
+Coming soon...
