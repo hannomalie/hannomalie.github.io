@@ -4,14 +4,18 @@
 {% set firstPost = published_posts | first %}
 <article class="post featured">
     <header class="major">
-        <span class="date">April 25, 2017</span>
-        <h2><a href="#">{{ firstPost.headline }}</a></h2>
+        <span class="date">{{ firstPost.date | date("yyyy-MM-dd") }}</span>
+        <h2><a href="{{ firstPost.uri }}">{{ firstPost.title }}</a></h2>
         <p>{{ firstPost.subheadline }}</p>
     </header>
-    <a href="#" class="image main"><img src="images/pic01.jpg" alt="" /></a>
+    {% if firstPost.image is null %}
+        <a href="{{ firstPost.uri }}" class="image main"><img src="{{ content.rootpath }}images/pic01.jpg" alt="" /></a>
+    {% else %}
+        <a href="{{ firstPost.uri }}" class="image main"><img src="{{ content.rootpath }}{{ firstPost.image }}" alt="" /></a>
+    {% endif %}
     <p>{{ firstPost.summary }}</p>
     <ul class="actions special">
-        <li><a href="{{ post.uri }}" class="button">full story</a></li>
+        <li><a href="{{ firstPost.uri }}" class="button">full story</a></li>
     </ul>
 </article>
 <section class="posts">
@@ -19,10 +23,14 @@
 {% for post in xOlderPosts %}
     <article>
         <header>
-            <span class="date">April 24, 2017</span>
-            <h2><a href="{{ post.uri }}">{{ post.headline }}</a></h2>
+            <span class="date">{{ post.date | date("yyyy-MM-dd") }}</span>
+            <h2><a href="{{ post.uri }}">{{ post.title }}</a></h2>
         </header>
-        <a href="#" class="image fit"><img src="images/pic02.jpg" alt="" /></a>
+        {% if post.image is null %}
+            <a href="{{ post.uri }}" class="image fit"><img src="{{ content.rootpath }}images/pic02.jpg" alt="" /></a>
+        {% else %}
+            <a href="{{ post.uri }}" class="image main"><img src="{{ content.rootpath }}{{ post.image }}" alt="" /></a>
+        {% endif %}
         <p>{{ post.summary }}</p>
         <ul class="actions special">
             <li><a href="{{ post.uri }}" class="button">full story</a></li>
