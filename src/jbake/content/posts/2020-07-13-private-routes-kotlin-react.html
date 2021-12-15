@@ -1,0 +1,74 @@
+title=Private routes with Kotlin JS and React Router
+date=2020-07-13
+type=post
+tags=react router,react,javascript,Kotlin,private routes,
+status=published
+headline=Private routes with Kotlin JS and React Router
+subheadline=For example to hide routes behind a login
+summary=In order to implement login functionality in a Kotlin React app, I used React Context API to save an optional instance of Login. This context can be used to create a wrap-around component that checks whether a given route can be accessed or not.
+image=images/640px-React_Native_Logo.png
+~~~~~~
+In order to implement login functionality in a Kotlin React app, I used React Context API to save an optional instance of Login. This context can be used to create a wrap-around component that checks whether a given route can be accessed or not. If not allowed, the request is redirected to the public <i>/login</i> route.<br />
+<br />
+The context class has to provide a way to get the current login data and functionality to logout or login. The state resides in the main component and is accessed through the <i>onChange</i> callback. The component1 function can be used to destructure the <i>useContext </i>result when only read access is needed.<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">class</span> <span style="color: #0066bb; font-weight: bold;">LoginContextData</span>(login: Login?, <span style="color: #008800; font-weight: bold;">private</span> <span style="color: #008800; font-weight: bold;">val</span> onChange: (Login?) -&gt; Unit) {
+    <span style="color: #008800; font-weight: bold;">var</span> login: Login? = login
+        <span style="color: #008800; font-weight: bold;">private</span> <span style="color: #008800; font-weight: bold;">set</span>
+    <span style="color: #008800; font-weight: bold;">fun</span> <span style="color: #0066bb; font-weight: bold;">login</span>(potentialLogin: Login) {
+        login = potentialLogin<span style="color: #008800;"></span><span style="color: #008800; font-weight: bold;"></span>
+        onChange(login)
+    }
+    <span style="color: #008800; font-weight: bold;">fun</span> <span style="color: #0066bb; font-weight: bold;">logout</span>() {
+        login = <span style="color: #008800; font-weight: bold;">null</span>
+        onChange(login)
+    }
+    operator <span style="color: #008800; font-weight: bold;">fun</span> <span style="color: #0066bb; font-weight: bold;">component1</span>() = login
+}</pre>
+    <pre style="line-height: 125%; margin: 0;">// can be global
+<span style="color: #cc7832;">val </span><span style="color: #9876aa; font-style: italic;">LoginContext </span>= <span style="font-style: italic;">createContext</span>(LoginContextData(<span style="color: #cc7832;">null</span>) <span style="font-weight: bold;">{ }</span>)
+</pre>
+</div>
+<br />
+The context is used like<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">val</span> loginState = useState(<span style="color: #008800; font-weight: bold;">null</span> <span style="color: #008800; font-weight: bold;">as</span> Login?)
+<span style="color: #008800; font-weight: bold;">val</span> (login, setLogin) = loginState
+
+LoginContext.Provider(LoginContextData(login) { newLogin -&gt;
+    setLogin(newLogin)
+}) {
+<span style="color: #888888;">// render your tree here</span>
+}
+</pre>
+</div>
+<br />
+Just like React Router provides the <i>route</i> function, we can write a function that does an if-else on the context and either calls the known <i>route </i>function or gives a redirect:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">fun</span> <t: rprops=""> RBuilder.privateRoute(
+    path: String,
+    exact: Boolean = <span style="color: #008800; font-weight: bold;">false</span>,
+    strict: Boolean = <span style="color: #008800; font-weight: bold;">false</span>,
+    children: RBuilder.(RouteResultProps&lt;*&gt;) -&gt; ReactElement?
+): ReactElement {
+    <span style="color: #008800; font-weight: bold;">val</span> (login) = useContext(LoginContext)
+
+    <span style="color: #008800; font-weight: bold;">return</span> <span style="color: #0066bb; font-weight: bold;">route</span>(path, exact, strict) { routerProps: RouteResultProps&lt;*&gt; -&gt;
+        <span style="color: #008800; font-weight: bold;">if</span>(login != <span style="color: #008800; font-weight: bold;">null</span>) {
+            children(routerProps)
+        } <span style="color: #008800; font-weight: bold;">else</span> {
+            redirect(from = path, to = <span style="background-color: #fff0f0;">"/login"</span>)
+        }
+    }
+}
+</t:></pre>
+</div>
+<br />
+The callsite can just use <i>privateRoute</i> instead or <i>route</i> and done. The <i>login</i> route remains public.<br />
+<br />
+The context can be used to decide whether a navigation item should be rendered or not as well.

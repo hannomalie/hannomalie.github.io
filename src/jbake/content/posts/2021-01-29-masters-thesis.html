@@ -1,0 +1,36 @@
+title=My master's thesis
+date=2021-01-29
+type=post
+tags=box projection,cone tracing,realtime global illumination,prefiltered environment maps,master thesis
+status=published
+headline=Dynamic Global Illumination
+subheadline=Using Realtime Importance Sampling And Image Based Lighting
+summary=Writing a master's thesis in computer graphics is not easy, can tell you. One of the best experiences of my career.
+image=images/hpengine_render_cover.png
+~~~~~~
+<p>I realized that I have never <i>published</i> or uploaded my master's thesis about global illumination stuff in realtime rendering from 2015.
+Even though it's written in german, it may be helpful for anyone out there, so feel free to take a look at the PDF version and the code examples.
+<br/>
+<br/>
+
+<a href="https://drive.google.com/file/d/0B0j-0MDrGMAlSmtDNi1xWG5yMk0/view?usp=sharing">https://drive.google.com/file/d/0B0j-0MDrGMAlSmtDNi1xWG5yMk0/view?usp=sharing</a>
+
+<br/>
+<br/>
+Quick summary: I utilized hand-placed, box-projected environment maps rendered and filtered in-engine in realtime in order to get a coarse scene representation.
+This is afterwards traced against with ray tracing, ray marching and cone tracing.
+For environment map rendering I created a datastrucutre per probe that is pretty much like a cubemap g-buffer, so lighting updates can be performed very fast.
+The whole process is complemented by screen space reflections because fine details or less rough reflections are not captured very good with this technique.
+
+I did some crazy experiments with volume interpolation in order to hide seams and leaks, added alpha information so that cone tracing through multiple volumes can be done and
+evaluated some optimizations.
+The results can be satisfying for diffuse indirect lighting and even for rough reflections, as long as the projection volume and the actual geometry don't differ that much.<br><br>
+All the implementations were made in my custom game engine I wrote from scratch and used afterwards for all the other experiments I did and wrote about here, like voxel cone tracing, gpu occlusion culling etc. So likely everything can be found in the repository (https://github.com/hannomalie/hpengine) in some git state :) The title picture in the readme is from the last state of my thesis technique, it looked like the image above
+
+I also found two screen recordings I never uploaded. <br><br>
+This one is a demo scene with a tight office or school floor. It's a tough scene for illumination because sun light can only enter the scene through small windows/doors on the side and the ceiling lights are thin area lights pointing downwards only. It would mean global illumination effects account for the largest amount of illumination in this scene, which is captured quite well by my technique. Changing floor materials has a visible impact on the mood of the scene because of that.<br><br>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/_omK2N5-M4g" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br><br><br>
+
+This one is a special test scene that has a spot light as the only direct light source.<br><br>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AwSfeo0xui4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></p>
