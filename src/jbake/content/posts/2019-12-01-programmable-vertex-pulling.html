@@ -1,0 +1,22 @@
+title=Programmable vertex pulling
+date=2019-12-01
+type=post
+tags=programmable vertex pulling,opengl,gpu,
+status=published
+headline=Programmable vertex pulling
+subheadline=No more complex vertex array abstractions
+summary=Programmable vertex pulling means using the built in draw id and index values to index into a structured buffer. No need for complex vertex array abstractions anymore.
+~~~~~~
+<p>So i finally managed to invest some time to implement <a href="https://github.com/nlguillemot/ProgrammablePulling" target="_blank">programmable vertex pulling</a> in my engine. I can really recommend to implement an abstraction over persistent mapped buffers that lets you implement structured buffers of generic structs and then use it on the cpu and the gpu side as a simple array of things.<br />
+<br />
+Nothing comes for free: I find it quite difficult to handle any other layout than <a href="https://www.khronos.org/opengl/wiki/Interface_Block_(GLSL)" target="_blank">std430</a> because that matches what your c, c++ code is doing, as long as you restrict yourself to always use 16 byte alignment members, I think. My struct framework doesn't do any alignment, so I just added dummy members where appropriate in order to match the layout requirements. Afterwards, struct definitions in glsl have to match your struct on the cpu side and the only things left for your vertices is<br />
+<br />
+<code><br />struct VertexPacked {<br />&nbsp;&nbsp;&nbsp; vec4 position;<br />&nbsp;&nbsp;&nbsp; vec4 texCoord;<br />&nbsp;&nbsp;&nbsp; vec4 normal;<br />};<br />layout(std430, binding=7) buffer _vertices {<br />&nbsp;&nbsp; &nbsp;VertexPacked vertices[];<br />};<br /><br />...<br /><br /><br />int vertexIndex = gl_VertexID;<br />VertexPacked vertex = vertices[vertexIndex]; </code>
+<br />
+<br />
+Combined with persistent mapping, you can get rid of any layout fuddling, synchronization, buffering, mapping...and it just works.<br />
+<br />
+Regarding performance: I am using an array of structs approach because it is the simplest to use. The performance in my test scenes (for example sponza) is completely identical to the traditional approach. No performance differences on a Intel UHD Graphics 620.<br />
+<br />
+Having free indexed access to vertices in your shaders can be beneficial in other situations as well. For example you can implement a kd-tree accelerated ray tracer with compute that uses indices into your regular vertex array.
+</p>
