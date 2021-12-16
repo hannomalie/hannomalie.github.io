@@ -1,5 +1,5 @@
 title=glDrawElementsBaseVertex demystified
-date=2016-03-17
+date=2016-09-24
 type=post
 tags=single pass rendering,graphics programming,opengl
 status=published
@@ -15,7 +15,7 @@ summary=Avoiding costly buffer bindings is key for an efficient renderer. So we 
  <br />
  Turns out there's a lot of confusion about the usage of this beast and some people even can't figure out how it is different from glDrawElements with a index buffer offset passed. The magic is: the base vertex attribute of <b>glDrawElementsBaseVertex </b>adds a value to the contents of your index buffer. <b>Indeed, it's not an offset that is used to retrieve the current index from the index buffer, it is an offset that is actually added to the value of your index</b>. Why? Because this way, you don't have to take care of adjusting indices by yourself when appending indices to a global index buffer. Here's an example:<br />
  <br />
- You have a plane, constisting of two triangles - 4 unique vertices (the corners) and 6 indices (2 triangles a 3 vertices). After you put those in your global buffers, you want to add another plane. If you append the new plane's 4 unique vertices to the global vertex buffer, you have 8 vertices in it. The first vertex can be accessed with index 4+0, the second one with 4+1 and so on. This offset has to be added to the indices of the new plane, or you can't use its indices with the global buffers. Since this is dumb work, OpenGL offers glDrawElementsBaseVertex. In this case, one could use it as follows to draw your two planes:<br />
+ You have a plane, consisting of two triangles - 4 unique vertices (the corners) and 6 indices (2 triangles a 3 vertices). After you put those in your global buffers, you want to add another plane. If you append the new plane's 4 unique vertices to the global vertex buffer, you have 8 vertices in it. The first vertex can be accessed with index 4+0, the second one with 4+1 and so on. This offset has to be added to the indices of the new plane, or you can't use its indices with the global buffers. Since this is dumb work, OpenGL offers glDrawElementsBaseVertex. In this case, one could use it as follows to draw your two planes:<br />
  <br />
  <i>glDrawElementsBaseVertex (GL_TRIANGLES, 3*2, GL_UNSIGNED_INT, 4*0, 0);</i><br />
  <i>glDrawElementsBaseVertex (GL_TRIANGLES, 3*2, GL_UNSIGNED_INT, 4*4, 4);</i><br />
