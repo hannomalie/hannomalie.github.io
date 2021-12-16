@@ -1,0 +1,33 @@
+title=Companion vals in Kotlin
+date=2019-08-16
+type=post
+tags=voxeliztation,voxel tracing,
+status=published
+headline=Companion vals in Kotlin
+subheadline=Why not mix 'using' and 'import'?
+summary=Companion vals and my interpretation of them are a very nice language feature that Kotlin - from my point of view - lacks a lot.
+~~~~~~
+<p>I totally forgot to make a braindump about another feature I stumbled upon lately: companion vals.<br />
+<br />
+There's <a href="https://github.com/Kotlin/KEEP/issues/114" target="_blank">this really interesting feature proposal for the Kotlin language</a>.<br />
+<br />
+In essence, the proposed feature allows to write the following code:<br />
+<br />
+<iframe src="https://pl.kotl.in/ZF6HxUfBK?theme=darcula"></iframe>
+
+<br />
+and the following code:
+
+<br />
+<iframe src="https://pl.kotl.in/mLUkmrxYI?theme=darcula"></iframe>
+
+<br />
+From my point of view the feature has two aspects.<br />
+<br />
+The first one is making members of companion members part of the surrounding instance. That means we can have properties and their members are automatically exposed, hence you don't need to access them with dot notation.<br />
+<br />
+The second aspect is that other scopes are treated as well: If something is marked as companion, it is automatically available as a receiver in the corresponding scope. The proposal only talks about class properties, which are available in the class body automatically. This enables having Kotlin's scoped extension functions available without the need to use <i>with(AdressPrinter) }{}</i> everywhere.<br />
+<br />
+I extended the Kotlin compiler with these two features and widened the application of the second aspect to all (?) possible scopes. This means if the companion val is top level, it's automatically available in the whole file. If a function parameter is marked as companion, the argument is going to be available as a receiver in the function body and so on. The implementation can be found <a href="https://github.com/hannespernpeintner/kotlin/tree/keep-106" target="_blank">here</a> and examples can be found in the working <a href="https://github.com/hannespernpeintner/kotlin/tree/keep-106/compiler/testData/codegen/box/companionval" target="_blank">tests.</a><br />
+<br />
+Since the compiler has no simple and no stable API, I also implemented an annotation processor, that fulfils the first aspect. Repository can be found <a href="https://github.com/hannespernpeintner/kotlin-companionvals" target="_blank">here</a>. This would make the above code compile (with the right imports). Works by generating extension functions for all members, just as you would do in Kotlin by hand anyway if you would want to have this functionality.</p>
