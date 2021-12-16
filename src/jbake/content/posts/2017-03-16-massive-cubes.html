@@ -1,0 +1,14 @@
+title=Rendering 4 Mio. vertices with 340000 cubes in Java
+date=2017-03-16
+type=post
+tags=java,realtime rendering,graphics programming,opengl,benchmark
+status=published
+headline=Rendering 4 Mio. vertices with 340000 cubes in Java
+subheadline=Just to show that it is easily possible
+summary=The host language is usually not the limiting factor for realtime rendering engines. I explain why and why Java is capable of competing here.
+image=images/4m_vertices_340000cubes.PNG
+~~~~~~
+<p>Someone has to fight the battle against the "Java is so slow, all Java games have low fps" myth. Maybe Java is not the best language for game development because it lacks value types and easy and zero overhead native code integration .... but the results one could achieve with using a zero-driver-overhead path like modern graphics APIs recommend for so many years, can be on par with what you can achieve in C or C++ as in Unreal, CryEngine or Unity. The secret is: Bindless ressources, indirect and instanced rendering, persistent mapped buffers, direct state access and of course good old multithreading.<br />
+ <br />
+ So, the most important things first: Use indirect rendering (to minimize calls the cpu has to issue!) and a shared global vertex buffer (to reduce state changes). Use large uniform or shader storage buffers for your object's properties and material properties. For each object, push a command into the buffer. Massive object counts cause massive command counts and large command buffers, so one can now use instancing to further reduce command count. With a clever structure (a offset buffer for example), one can easily have unique properties per object instance (for example dedicated textures per instance!) sourced from a large uniform buffer, when it's okay to share a common geometry (vertices). Et voila, 2ms cpu time to fire a render command that draws 340.000 instanced cubes with 4 million triangles at 60 fps in Java. Each object can have it's own textures and properties etc.<br />
+ <br /></p>

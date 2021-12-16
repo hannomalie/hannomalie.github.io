@@ -1,0 +1,24 @@
+title=Why simple automatic lightmap coords (usually) don't work
+date=2016-03-17
+type=post
+tags=convolution,global illumination,compute shader,lightmapping
+status=published
+headline=Why simple automatic lightmap coords (usually) don't work
+subheadline=But it would be so nice...
+summary=Mesh parameterization is a field of active research. Of course I didn't believe it could be that hard so I tried to implement a system that automatically generates light maps or at least a UV atlas from naked meshes.
+image=images/generated_lightmap_uvs.PNG
+~~~~~~
+<p>Some time ago, I experimented with new algorithms for dynamic global illumination in realtime after I was not too satisified with my Voxel Cone Tracing. A friend of mine invented a method I am probably not allowed to talk about, but was really impressed of. It is somehow related to this one in a certain degree:&nbsp;<a href="https://www.youtube.com/watch?v=tEFx9h9ZG-c" target="_blank">Real Time Point Based Global Illumination</a>. The idea of having a global scene parameterization (for example a lightmap texture) is very compelling, especially if it can be used for global illumination calculation. Inspired by the method I just linked, the idea was: Use a moderately sized lightmap (n*m or n*n) for the entire scene, make the lightmap texture a "deferred buffer" and store a texture with world position, normals, color and maybo other material properties. Afterwards, use brute force in the form of a compute shader, to solve each texels (which is effectively a scene surfel) illumination through incoming light (all other texels of the fat lightmap). Split the n*n computation in 4 or more parts and update the final texture every 4th or so frame. Evaluate the global illumination as a fullscreen effect in your deferred pipeline -&gt; finished. The nice thing is, that dynamic objects can not only receive, but contribute global illumination with updating the position (and other) textures as well. Multiple bounces can implemented with simple iteration and ping-ponging...<br />
+ <br />
+ While this sounds very very nice, which it is, I tested it successfully with the famous cornell box. This scene is small enough to have a very small lightmap. Also, the geometry is simple enough, that the lightmap coords can be packed very tightly. Using an emmissive box for dynamic global illumination contribution worked fine as well. But now back to the real world:<br />
+ <br />
+ First thing is, that I'm not an artist. And most testing models I use aren't lightmapped. So because I don't like to depend on someone else, my method should work completely automatic, maybe with some precomputation. Fine, let's automatically calculate lightmap coordinates. There are so many different algorithms on the internet, that I keep it short: Most automatic methods can't handle all possible cases of geometry. Many people on the internet (and who knows better :P) tend to say, that simple planar projection is the only fast enough, simple enough allround algorithm in existence. I implemented planar projection of triangles. Each (immutable) scene has lightmap coords precalculated. Therefore, all triangles are ordered by height, so that no single triangle is higher than the one before it. Every triangle has to cover at least one texel, or it won't be rendered, when rendering the lightmap. I used the triangles world-sizes to span a lightmap space, so for example alle of my scene's faces cover an area of 1022*2344 or so. Afterwards, I determine how big my lightmap has to be - the scaling factor is applied to the worldspace lightmap coords at runtime. Everything fine so far. Worked like a charm. Here's a debug picture of a "simple" scene with some dozens of thousands of triangles.<br />
+ <br />
+ <br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+ <br /></div>
+One can already see whats the problem: many small triangles.<br />
+<br />
+It took me just until this point in my implementation, when I realized, that I didn't think it through. Having a box-like geometry makes this mesh use maybe 12 triangles. But already a small sphere can use 400 triangles and be only of 1m³ size. Without simplifiing the meshes, I had to reserve one texel per triangle. Even more when not tightly packed. My scene had 250k triangles, thats 500*500 with absolute perfect packing. With padding and garbage, and the fact that larger triangles occupy more texels, I finally had to allocate a lightmap of 24000*1024....which obviously isn't possible to handle at all, even with brute force compute shaders.<br />
+<br />
+So, I really wonder if there exists an efficient way for automatic lightmap coord generation without mesh simplification or complex segmentation algorithms. Goodby, allmighty realtime global illumination with fat lightmaps, back to Voxel Cone Tracing :)</p>
