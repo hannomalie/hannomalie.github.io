@@ -1,0 +1,298 @@
+title=Two-phase occlusion culling (part 2)
+date=2018-02-07
+type=post
+tags=compute shader,deferred rendering,graphics programming,realtime rendering,instanced rendering
+status=published
+headline=Two-phase occlusion culling (part 2)
+subheadline=Instance aware culling
+summary=Culling is very useful, so how can we have a self feeding GPU pipeline with instanced rendering that is able to cull instances that are outside the frustum?
+~~~~~~
+<p>I described the basics about the two-phase occlusion culling
+technique in the first part post, but there is one thing, that doesn't
+work well with this <i>simple</i> setup: Instancing or sometimes viewed as batching.<br />
+<br />
+<br />
+The problem is very simple, the solution however is not.
+Only a few engines managed to implement the technique, but it is
+unavoidable if one needs to render large batches or large amounts of
+instances. Quick recap, under the assumption that we compromise
+flexibility in favor of speed and use OpenGL 4.5 level graphics APIs:<br />
+<br />
+<b>Avoid buffer changes</b> one, two different vertex layouts (for example for static and animated meshed)<br />
+<br />
+<b>Avoid program changes</b> well defined firstpass program (deferred rendering) or subroutines in a global attribute buffer<br />
+<br />
+<b>Minimize drawcalls</b> Usage of instanced and indirect rendering<br />
+<br />
+<br />
+The
+usage of draw commands and indirect rendering is nice enough. The
+amount of drawcommands is reduced by using instanced rendering for
+entities that have different uniform attributes but the same vertices
+and indices. This results in the command and entitiy buffers of the
+following form:<br />
+<br />
+<br />
+<table id="entity-buffer">
+    <thead>
+    <tr>
+        <th scope="col">Entities</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+    </tr>
+    </tfoot>
+    <tbody>
+    <tr>
+        <td>uint entityId</td>
+        <td>678</td>
+    </tr>
+    <tr>
+        <td>mat4 transform</td>
+        <td>000...</td>
+    </tr>
+    <tr>
+        <td>uint materialIndex</td>
+        <td>18</td>
+    </tr>
+    <tr>
+        <td>uint entityId</td>
+        <td>1566</td>
+    </tr>
+    <tr>
+        <td>mat4 transform</td>
+        <td>000...</td>
+    </tr>
+    <tr>
+        <td>uint materialIndex</td>
+        <td>2</td>
+    </tr>
+    </tbody>
+</table>
+<br />
+<table id="command-buffer">
+    <thead>
+    <tr>
+        <th scope="col">Commands</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+    </tr>
+    </tfoot>
+    <tbody>
+    <tr>
+        <td>vertexOffset</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>indexOffset</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>indexCount</td>
+        <td>99</td>
+    </tr>
+    <tr>
+        <td>instanceCount</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>vertexOffset</td>
+        <td>1200</td>
+    </tr>
+    <tr>
+        <td>indexOffset</td>
+        <td>99</td>
+    </tr>
+    <tr>
+        <td>indexCount</td>
+        <td>33</td>
+    </tr>
+    <tr>
+        <td>instanceCount</td>
+        <td>3</td>
+    </tr>
+    </tbody>
+</table>
+<br />
+Firing indirect rendering call is now done with a
+count of two, because we have two commands. 5 objects will be drawn. The
+shaders are invoked several times and the entity data can be accessed
+with an index and fetched from the entities buffer. The resulting
+indices in the shader will look like<br />
+<br />
+<table id="shader-invocations">
+    <thead>
+    <tr>
+        <th scope="col">Shader Invocations</th>
+    </tr>
+    <tr>
+        <th scope="col">DrawId</th>
+        <th scope="col">InstanceId</th>
+        <th scope="col">Entity buffer index</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+    </tr>
+    </tfoot>
+    <tbody>
+    <tr>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>0</td>
+        <td>1</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>0</td>
+        <td>???</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>1</td>
+        <td>???</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>2</td>
+        <td>???</td>
+    </tr>
+    </tbody>
+</table>
+<br />
+As mentioned in the previous blog post, there's no
+chance for us to know the entity index when the second command is
+executed, because the current offset is based on the amount of instances
+the previous commands draw. The solution is to use an additional offset
+buffer with size of the draw command buffer. For every command, we set
+the offset to the appropriate value when creating the commands on the
+cpu side. With instance based culling, this problem intensifies, because
+the cpu doesn't know the offset anymore. The calculation has to be done
+on the GPU now. My solution is still based on vertex shader kernels,
+but I will tell you later why this is probably problematic. First how it
+is done, because conceptionally, it will be the same for compute
+shaders. The layout now looks like this:<br />
+<br />
+<table id="shader-invocations">
+    <thead>
+    <tr>
+        <th scope="col">Shader Invocations</th>
+    </tr>
+    <tr>
+        <th scope="col">DrawId</th>
+        <th scope="col">InstanceId</th>
+        <th scope="col">Entity buffer index (command offset + InstanceId)</th>
+        <th scope="col">Offset of the command</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+    </tr>
+    </tfoot>
+    <tbody>
+    <tr>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>0</td>
+        <td>1</td>
+        <td>1</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>0</td>
+        <td>2</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>1</td>
+        <td>3</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>2</td>
+        <td>4</td>
+        <td>2</td>
+    </tr>
+    </tbody>
+</table>
+<br />
+<br />
+The first step is to determine the
+visibility for every single instance. Vertex shader kernels have an
+advantage here, because they can be arbitrarily large (compute shader
+groups are limited to 1024 or so). A single draw call can determine
+visibility for dozens of thousands of instances or entities. Combined
+with instancing, we can use DrawId and InstanceId to index into the
+command buffer and offset buffer (DrawId) and into the entity buffer
+(offset + InstanceId). Since the same kernel sizes are applied to every
+command, invocations are <i>wasted</i> if few commands have many more
+instances as others. So you might want to launch draw calls without
+instancing, one per command, which could be faster here.<br />
+The
+visibility is again stored into the visibility buffer, which has to be
+as large as the entity buffer now. With non-instanced culling, size of
+the command buffer was sufficient. One important thing has to be done
+now: Every visible entity thread has to increase a counter that is
+associated with the corresponding command - since this is done per
+invocation, atomic operations are needed. So we need another int buffer
+(just like the offset buffer), that holds the visible instances count
+per command.<br />
+<br />
+The reason why this is so important is,
+that this is the bit of information that is used in a second step to
+append entity data and draw commands in parallel. This is done by an algorithm similar/equal to parallel prefix sum - you can google it. Tldr: Each command has to know how many visible instances all previous commands produce in total, so that it can append its own instances there.<br />
+<br />
+I call the seconds step <i>appending step</i>, while the first one is the <i>visibility computation step</i>,
+that actually calculates the visibility of an instance. For a massive
+amount of instanced commands, one would probably want to launch a
+two-dimensional kernel of the size n*m where n is the amount of commands
+and m is max(maxInstanceCount, someArbitraryValue) or something. Again,
+with vastly different instanceCounts per command, multiple shader calls
+could give a benefit.<br />
+<br />
+So now we need a target buffer
+that holds the entity data, a target buffer for the commands and a
+target buffer for the entity data offsets. Additionally, we need an
+atomic counter for the target command index and then an atomic counter
+per command, that is the current index of the entities per command. Each
+shader invocation has its own command index in the DrawID built-in and
+the instance index in the InstanceID&nbsp; built-in. So we can calculate all
+information that is needed on the fly:<br />
+<br />
+struct oldCommand = read from the bound command buffer with DrawID<br />
+uint&nbsp; oldCommandEntityOffset = read from the oldOffsetBuffer with DrawID<br />
+uint oldEntityIndex = oldCommandEntityOffset + InstanceID<br />
+uint visibilityBufferIndex = oldEntityIndex<br />
+uint targetCommandIndex = atomicAdd(commandConuter, 1)<br />
+uint targetInstanceIndex = atomicAdd(commandCounters[targetCommandIndex], 1)<br />
+uint targetEntityIndex =&nbsp; sumOfVisibleInstancesOfAllCommandsBeforeCurrentCommand<br />
+<br />
+The
+current entity data can then be written to the targetEntityDataBuffer,
+as well as the offset for the instance/command. The command can be written by the first active
+thread (InstanceID == 0). The resulting buffers contain only the visible
+instances, offsets of the visible instances and drawcommands that can
+be used to only draw exactly those instances.<br />
+<br />
+&nbsp;Here's a video demonstrating occlusion and frustum culling with this technique:<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+    <iframe width="320" height="266" class="YOUTUBE-iframe-video" data-thumbnail-src="https://i.ytimg.com/vi/383EKvaU2vE/0.jpg" src="https://www.youtube.com/embed/383EKvaU2vE?feature=player_embedded" frameborder="0" allowfullscreen></iframe></div>
+<br />
+<br />
+<i>Bonus: For the visibility computation step, it's nice to launch a vertex shader kernel, since the kernel can be arbitrarily large in two dimensions at max. Since there's no shared memory involved, this will probably perform better than the compute shader equivalent, maybe at the same speed, but it shouldn't be slower. The appending step needs an atomic operation per invocation, because every invocation increments the counter if the corresponding instance is visible (which the other invocations couldn't know). Instead of "global" shared memory, one could use shared memory of a compute shader group. Shared memory in a group is much faster than atomic operations between a gazillion vertex shader invocations, so I will implement this at some time and may be able to show a performance comparison.</i><br />
+<br /></p>

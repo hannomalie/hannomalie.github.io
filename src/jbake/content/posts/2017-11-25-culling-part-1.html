@@ -1,0 +1,162 @@
+title=Two-phase occlusion culling (part 1)
+date=2017-11-25
+type=post
+tags=indirect rendering,java,performance,culling,compute shader,opengl,
+status=published
+headline=Two-phase occlusion culling (part 1)
+subheadline=Perfect culling using the last frame's depth pyramid
+summary=Culling systems that have to differentiate between occluders and occludees require to explicitly mark objects as either of them. Two phase occlusion culling uses the last frame's depth pyramid and achieves perfect culling without that downside.
+~~~~~~
+<p>I really love rendering technique performance&nbsp;enhancements that work with existing asset pipelines and don't need artists to tweak and configure scene objects. Occlusion culling is a technique that is necessary for every engine that should be able to render interior scenes or outdoor scenes with much foilage. Some existing techniques require the user to mark occluder objects explicitely - which is not sufficient for outdoor scenes where ocludees are occluders too, some techniques are fast, but introduce sync points between cpu and gpu and therefore introduce latency and with it popping artifacts.<br />
+    <br />
+    <a href="https://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=2&amp;cad=rja&amp;uact=8&amp;ved=0ahUKEwiVp5jGrdjXAhWCL1AKHZbFBKoQFggrMAE&amp;url=http%3A%2F%2Fadvances.realtimerendering.com%2Fs2015%2Faaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf&amp;usg=AOvVaw0iIjswpOOKOG3seEwZKDU7" target="_blank">This papter</a>&nbsp;describes a super nice algorithm very briefly: Two-phase occlusion culling. This technique has some advantages: It is blazingly fast, because it's GPU-only. Culling dozens of thousands of objects and even single instances is possible. It introduces no latency, so no popping artifacts. And it doesn't need hand-tweaking, no need to differenciate between occluders and occludees - every object can be both. The disadvantage is, that the technique requires a fairly new GPU with indirect rendering.<br />
+    <br />
+<h3>
+    The algorithm</h3>
+<div>
+    We need some buffers first:</div>
+<div>
+    A source command buffer, containing n commands.</div>
+<div>
+    A target command buffer of size n.</div>
+<div>
+    A visibility buffer, containing n ints, an entry for each source command.</div>
+<div>
+    A atomicCounter buffer.</div>
+<div>
+    <br /></div>
+<div>
+    All scene objects produce draw commands that are put into a buffer. Take a look at my other posts to see how to implement a lock-free multithreading engine with unsynchronized buffers. The entity data is put into a buffer as well. Part of this data is a AABB, calculated on the CPU side. The CPU only needs to calculate the AABB and put the latest data into a buffer.</div>
+<div>
+    The GPU-side now performs the following steps for rendering: A thread per draw command is executed. The corresponding entity data is fetched from the other buffer. The AABB is culled against the hierarchical depth buffer of the last frame (or an empty one if current frame is the first frame, doesn't matter). If the AABB is occluded, the command saves visibilityBuffer[index] = 1. Now another shader is executed with n threads. Every thread takes a look at it's visibilityBuffer index. If it contains a 1, the entity is visible and the sourceCommand is fetched and written to the targetCommand buffer. The index is the result of an atomicAdd on the atomicCounterBuffer. Now the atomicCounterBuffer contains the drawCount, while the targetCommand buffer contains the commands we need to render. Rendering is done with directRendering, so no readback to the CPU at all. Afterwards, the highz buffer is updated. Now the procedure is repeated, but only the invisible objects of the current frame are tested against the updated depth buffer. All visible marked objects were falsely culled and have to be rendered now. So all the algorithm needs is two indirect drawcommands, as well as the culling and buffer copying steps.</div>
+<div>
+    <br /></div>
+<div>
+    Here's an example of a scene, where 7-8 cars with roughly a million vertices is rendered. When behind a plane, they are occluded and therefore, no draw commands are comitted and the framerate goes through the roof.</div>
+<div>
+    <br /></div>
+<div>
+    <br /></div>
+<iframe allowfullscreen="" frameborder="0" height="315" src="https://www.youtube.com/embed/hIJHpLpGidQ" width="560"></iframe><br />
+<br />
+<h3>
+    Implementation</h3>
+<div>
+    Normally, you are already rendering depth somehow, at least in the regular depth buffer. Here's the most generic compute shader way to create a highz buffer with OpenGL:</div>
+<div>
+    <br /></div>
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> public static void renderHighZMap(int baseDepthTexture, int baseWidth, int baseHeight, int highZTexture, ComputeShaderProgram highZProgram) {
+     highZProgram.use();
+     int lastWidth = baseWidth;
+     int lastHeight = baseHeight;
+     int currentWidth = lastWidth /2;
+     int currentHeight = lastHeight/2;
+     int mipMapCount = Util.calculateMipMapCount(currentWidth, currentHeight);
+     for(int mipmapTarget = 0; mipmapTarget &lt; mipMapCount; mipmapTarget++ ) {
+       highZProgram.setUniform("width", currentWidth);
+       highZProgram.setUniform("height", currentHeight);
+       highZProgram.setUniform("lastWidth", lastWidth);
+       highZProgram.setUniform("lastHeight", lastHeight);
+       highZProgram.setUniform("mipmapTarget", mipmapTarget);
+       if(mipmapTarget == 0) {
+         GraphicsContext.getInstance().bindTexture(0, TEXTURE_2D, baseDepthTexture);
+       } else {
+         GraphicsContext.getInstance().bindTexture(0, TEXTURE_2D, highZTexture);
+       }
+       GraphicsContext.getInstance().bindImageTexture(1, highZTexture, mipmapTarget, false, 0, GL15.GL_READ_WRITE, HIGHZ_FORMAT);
+       int num_groups_x = Math.max(1, (currentWidth + 7) / 8);
+       int num_groups_y = Math.max(1, (currentHeight + 7) / 8);
+       highZProgram.dispatchCompute(num_groups_x, num_groups_y, 1);
+       lastWidth = currentWidth;
+       lastHeight = currentHeight;
+       currentWidth /= 2;
+       currentHeight /= 2;
+       glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+     }
+   }
+</code></pre>
+<br />
+And the corresponding compute shader:<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> layout(binding = 0) uniform sampler2D sourceTexture;
+ layout(binding = 1, r32f) uniform image2D targetImage;
+ #define WORK_GROUP_SIZE 8
+ layout(local_size_x = WORK_GROUP_SIZE, local_size_y = WORK_GROUP_SIZE) in;
+ uniform int width = 0;
+ uniform int height = 0;
+ uniform int lastWidth = 0;
+ uniform int lastHeight = 0;
+ uniform int mipmapTarget = 0;
+ vec4 getMaxR(sampler2D sampler, ivec2 baseCoords, int mipLevelToSampleFrom) {
+      vec4 fineZ;
+      fineZ.x = (texelFetch(sampler, baseCoords, mipLevelToSampleFrom).r);
+      fineZ.y = (texelFetch(sampler, baseCoords + ivec2(1,0), mipLevelToSampleFrom).r);
+      fineZ.z = (texelFetch(sampler, baseCoords + ivec2(1,1), mipLevelToSampleFrom).r);
+      fineZ.w = (texelFetch(sampler, baseCoords + ivec2(0,1), mipLevelToSampleFrom).r);
+      return fineZ;
+ }
+ vec4 getMaxG(sampler2D sampler, ivec2 baseCoords, int mipLevelToSampleFrom) {
+      vec4 fineZ;
+      fineZ.x = (texelFetch(sampler, baseCoords, mipLevelToSampleFrom).g);
+      fineZ.y = (texelFetch(sampler, baseCoords + ivec2(1,0), mipLevelToSampleFrom).g);
+      fineZ.z = (texelFetch(sampler, baseCoords + ivec2(1,1), mipLevelToSampleFrom).g);
+      fineZ.w = (texelFetch(sampler, baseCoords + ivec2(0,1), mipLevelToSampleFrom).g);
+      return fineZ;
+ }
+ void main(){
+      ivec2 pixelPos = ivec2(gl_GlobalInvocationID.xy);
+      ivec2 samplePos = 2*pixelPos;//+1; // TODO: Fix this
+      int mipmapSource = mipmapTarget-1;
+   vec4 total;
+   if(mipmapTarget == 0) {
+     total = getMaxG(sourceTexture, samplePos, 0);
+   } else {
+     total = getMaxR(sourceTexture, samplePos, mipmapSource);
+   }
+   float maximum = max(max(total.x, total.y), max(total.z, total.w));
+ //Thank you!
+ //http://rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
+  vec3 extra;
+  // if we are reducing an odd-width texture then fetch the edge texels
+  if ( ( (lastWidth % 2) != 0 ) &amp;&amp; ( pixelPos.x == lastWidth-3 ) ) {
+   // if both edges are odd, fetch the top-left corner texel
+   if ( ( (lastHeight % 2) != 0 ) &amp;&amp; ( pixelPos.y == lastHeight-3 ) ) {
+    extra.z = texelFetch(sourceTexture, samplePos + ivec2( 1, 1), mipmapSource).x;
+    maximum = max( maximum, extra.z );
+   }
+   extra.x = texelFetch( sourceTexture, samplePos + ivec2( 1, 0), mipmapSource).x;
+   extra.y = texelFetch( sourceTexture, samplePos + ivec2( 1,-1), mipmapSource).x;
+   maximum = max( maximum, max( extra.x, extra.y ) );
+  } else if ( ( (lastHeight % 2) != 0 ) &amp;&amp; ( pixelPos.y == lastHeight-3 ) ) {
+   // if we are reducing an odd-height texture then fetch the edge texels
+   extra.x = texelFetch( sourceTexture, samplePos + ivec2( 0, 1), mipmapSource).x;
+   extra.y = texelFetch( sourceTexture, samplePos + ivec2(-1, 1), mipmapSource).x;
+   maximum = max( maximum, max( extra.x, extra.y ) );
+  }
+      imageStore(targetImage, pixelPos, vec4(maximum));
+ }
+</code></pre>
+<br />
+The culling shader code can be found on&nbsp;<a href="http://rastergrid.com/blog/" target="_blank">rastergrid</a>, where you can find very much information about highz culling in general. I experienced some strange bugs with compute shaders, that seemed to be executed twice on my machine. Since I wasn't able to get rid of them, I used a vertex shader trick to execute arbitrary kernels on the GPU: Have some dummy vertex buffer bound (needed by specification) and use <i>glDrawArrays </i>with&nbsp;<i>(commands.size + 2) / 3 * 3 </i>(we need a multiple of 3 here). No fragment shader is needed for the shader program. In the vertex shader, gl_VertexID can be used as the invocation index. The following shadercode copies draw commands from visible entities to the target buffer. It's just an extract, but you get the idea:<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> [...]
+ layout(std430, binding=9) buffer _visibility {
+      int visibility[1000];
+ };
+ uniform int maxDrawCommands;
+ void main()
+ {
+   uint indexBefore = gl_VertexID;
+   if(indexBefore &lt; maxDrawCommands) {
+     DrawCommand sourceCommand = drawCommandsSource[indexBefore];
+     bool visible = visibility[indexBefore] == 1;
+     if(visible)
+     {
+       uint indexAfter = atomicAdd(drawCount, 1);
+       drawCommandsTarget[indexAfter] = sourceCommand;
+     }
+   }
+ }
+</code></pre>
+<br />
+There is some aspect missing yet: With instanced rendering, one has to introduce a offset buffer, where every entry gives the offset into a instanced entity buffer for a draw command. My current implementation has a AABB for an instance cluster, grouping several isntances into a draw command that can be culled. The next post will hopefully show, how this tecchnique can be extended to cull single instances, in order to have perfect culling for example for thousands of foilage objects.</p>
