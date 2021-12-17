@@ -1,0 +1,23 @@
+title=Java + Maven: Use local dependencies with maven-assembly-plugin
+date=2015-04-12
+type=post
+tags=java,maven-assembly-plugin,dependency,build,maven
+status=published
+headline=Use local dependencies with maven-assembly-plugin
+subheadline=In Java with Maven
+summary=This may be an advice to chose local installed dependencies in Maven over local files.
+~~~~~~
+<p>Every now and then we come across dependencies that can't be found in a repository. While there is a simple way to tell maven how to use a local file as a dependency with
+
+    <script src="https://gist.github.com/hannomalie/de24c4476562c2a35ef9.js"></script>
+
+    there is one major issue. The <i>maven-assembly-plugin</i> will not copy your local libs into your fatjar. I found several ways to somehow tell maven how to handle maven/the maven-assembly-plugin that the provided dependencies should be asembled as well - one looks scarier than the other and none of them did what I wanted. To make it short: After I ripped out my hair several times trying to manage such... screwed needs, the most satisfying answer is probably: don't do it this way.
+    <br>
+    <br>
+    If there's no way to get your own dependency repo server, where you can put your lib (which should be the case most of the times you program small personal projects), then just place all dependencies somewhere in your repo and let other programmers do the rest for themselves. Sounds lame, can be pretty easy and simple: One should install the local dependency as a local dependency. This is the stadard way maven recommends and it is robust. Can be done with
+    <br>
+    <br>
+
+    <script src="https://gist.github.com/hannomalie/b8126925eadc64e93d4b.js"></script>
+
+    This installs a given jar into your local maven repo. Minimal pain, minimal effort, works with (probably) all plugins, because it's a simple provided dependency.</p>

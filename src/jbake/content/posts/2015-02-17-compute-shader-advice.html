@@ -1,0 +1,44 @@
+title=Compute shader advices
+date=2015-02-17
+type=post
+tags=opengl,compute shader
+status=published
+headline=Compute shader advices
+summary=First steps with compute shaders - what was good and what went wrong.
+~~~~~~
+<p>Recently, I had a lot of pleasure with <b>OpenGL's compute shaders</b>. With this lot of pleasure came a lot of pain because I made some (rookie) mistakes. So I wanted to share my experience and some advices I have, just in case you have troubles too:<br />
+<div style="text-align: justify;">
+    <br /></div>
+<ul>
+    <li><div style="text-align: justify;">
+        The first thing you should check are your texture formats! No, really, double check it, don't repeat my mistakes. In your compute shaders, you could use your images (not textures) with</div>
+        <div style="text-align: justify;">
+            <br /></div>
+        <i><div style="text-align: left;">
+            <i>glBindImageTexture(unit, textureId, 0, false, 0, GL_WRITE_ONLY, GL30.GL_RGBA16F);</i></div>
+        </i><div style="text-align: justify;">
+            <br /></div>
+        <div style="text-align: justify;">
+            of OpenGL version 4.2&nbsp;as an output texture. Of course you could use <i>GL_READ_ONLY </i>or <i>GL_READ_WRITE </i>if you use the texture differently. Also keep in mind that this call binds an image, not a texture. And that's why you have to provide a mipmap level you want to attach. I used the wrong format once, namely rgba32f, which my rendertarget attachments didn't have, and it resulted in non existent output from my compute shader. Very frustrating but correct behaviour.</div>
+    </li>
+    <li style="text-align: justify;">Keep in mind that you could use your regular textures via samplers in your compute shaders, too. Simply bind the texture and have a&nbsp;<span class="Apple-tab-span" style="white-space: pre;"> </span>similar line to this in your shader<br /><i><br /><div style="text-align: left;">
+        <i>layout(binding = 1) uniform sampler2D normalMap;</i></div>
+    </i><br />That's helpful if you want to access mip levels easily.</li>
+    <li><div style="text-align: justify;">
+        Since even in the OpenGL super bible is a typo that doesn't help to understand the compute shaders built-ins, I recapture them.</div>
+        <div style="text-align: justify;">
+            With <b>dispatchCompute </b>you have to provide three variables that are your group counts. A compute shader pass is done by a large number of threads and defining clever group counts/sizes will help you to process your data. In graphics related cases, mostly you will need compute shaders to render to a texture target. So it would be clever to have a certain, two-dimensional amount of threads, wouldn't it? Define your group sizes corresponding to your image size: a 320*320 image could be devided into 10*10 groups, or tiles - and each will have 32*32 pixels in it. So you should define your group size as 32, 32, 1. Now you can dispatch 320/group size threads, which will be 10 groups, for x and y dimension. In your shader, you will be able to use the built-in&nbsp;<b style="font-style: italic;">gl_WorkGroupSize </b>to have this information in every invocation of your shaders main method. To uniquely identify your invocation, you can use the&nbsp;<i style="font-weight: bold;">gl_GlobalInvocationID</i>. If you use your shader like I said in this example, this would contain your texel's position the invocation would have to write. And that's how you can use compute shaders to manipulate your textures. Additionally, there is a&nbsp;<i style="font-weight: bold;">gl_WorkGroupID</i>, that identifies your tile/group of the invoation, and&nbsp;<b style="font-style: italic;">gl_LocalInvocationID</b>, that is your pixels position in its tile. Sometimes, it could be useful to use a <i>flattened</i> identifier - for example if you have a task that requires performing an action just 12 times, but has to be done in the compute shader - and therefore you can use <i style="font-weight: bold;">gl_LocalInvocationIndex</i>. You can use it as a conditional to limit some code paths like<br />
+            <br />
+            <div style="text-align: left;">
+                <i>if(gl_LocalInvocationIndex &lt; MAX_ITEMS) { processItem(); }</i></div>
+        </div>
+        <div style="text-align: justify;">
+            <br />
+            For a better understanding, have a look at&nbsp;<a href="https://github.com/LWJGL/lwjgl3-wiki/wiki/2.6.1.-Ray-tracing-with-OpenGL-Compute-Shaders-(Part-I)#executing-the-compute-shader" target="_blank">this post</a>, which has a nice picture and another explanation of the group layout.</div>
+    </li>
+</ul>
+<div>
+    <br />
+    What else? Compute shaders are awesome! I like how easy it is to invoke them, independent of something like the graphics pipeline. Use compute shaders!</div>
+
+</p>

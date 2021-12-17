@@ -1,0 +1,63 @@
+title=Declerative Programming in Java With Dagger Dependency Injection
+date=2015-04-12
+type=post
+tags=dependeny injection,dagger,java,declerative programming,
+status=published
+headline=Declerative Programming
+subheadline=In Java With Dagger Dependency Injection
+summary=How does a dependency injection framework move your coding style towards declarative programming?
+~~~~~~
+<p>Most web developers got already used to working with <b>Dependency Injection</b> (DI), but other developers tend to avoid this topic in e.g. desktop applications. First of all: dependency injection does only mean that the inversion of control paradigm/pattern is used. As a consequence, domain objects don't get their dependencies (other objects, services etc.) by themselves, but have them injected (at construction time). This isn't necessarily done by a framework, the easiest way is to just have constructor arguments for all object fields. For example this
+
+    <br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">MyObject object = new MyOject(new Dependency());
+
+class MyOject() {
+  private Dependency dependency;
+  MyObject(Dependency dependency) {
+    this.dependency = dependency;
+  }
+}
+</code></pre>
+is better than this
+
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">MyObject object = new MyOject();
+
+class MyOject() {
+  private Dependency dependency;
+  MyObject() {
+    this.dependency = new Dependency();
+  }
+}
+</code></pre>
+because of some reasons. The most important reason is, that the second example doesn't support different implementations for the dependency. Imagine you want to do tests and mock a heavy database connection. Using interfaces in those situations and an injected implementation is recommended. Second, if you change something on the dependency class, you have to touch the intrinsics of the object class, which doesn't sound right, because you don't want to touch this class.&nbsp;
+<br />
+<br />
+After it's clear to use DI, one can go a step further. Instead of <i>how</i>&nbsp;our dependencies are solved, it would be nice to just say <i>what</i>&nbsp;dependencies we want to have: <i>declerative programming</i>. <i>How</i>&nbsp;they are solved is easy most of the time and handled later, even in a declerative manner.<br />
+<br />
+So for Java SE applications, it's not trivial to chose the right framework for injection. For the platform standard <i>CDI, </i>an implementing library is needed. Other containers, like Google's Guava or Spring are rather heavyweight and provide a rich set of features. However, there's a new shooting star I dove into: <b><a href="http://square.github.io/dagger/">Dagger</a></b>. Promises to be simple and fast, because it's (optional) a compile time thing. And I can confirm that it's easy and nice.<br />
+<br />
+For example how many times have you already used the Singleton pattern? With dagger, you can just annotate your class as a Singleton and the framework does everything else for you.
+
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">@Singleton
+public class Config {
+    public int WIDTH = 1280;
+    public int HEIGHT = 720;
+
+    @Inject
+    public Config() {}
+}
+</code></pre>
+A small configuration for a renderer framework of mine. Can't get any simpler than this - only one odd @Inject constructor annotation I don't understand completely. To obtain the service, you declare the injection in the consuming class. For example a context class of the application.
+
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">@Singleton
+public class Context {
+    @Inject Config config;
+}
+</code></pre>
+The context class is not meant to provide access to the configuration. The configuration can be injected directly into all other classes as well.<br />
+<br />
+There is a ton of other features and having some objets wired together automatically is great. But I already found a job that Dagger can not fullfill - something that is called <i><a href="https://groups.google.com/forum/#!topic/dagger-discuss/QgnvmZ-dH9c" target="_blank">assisted injection</a></i>. The factory - for example for your game objects - can be injected into the context. You can inject something like a provider as well; this is an object that works like a factory but cannot take your parameters to construct them. While other frameworks may be used for injection of objets with partially managed fields, Dagger can't do it, maye can do it in the future.</p>
