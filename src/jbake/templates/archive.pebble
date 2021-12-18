@@ -17,7 +17,11 @@
                 <span class="date">{{ post.date | date("yyyy-MM-dd") }}</span>
                 <h4><a href="{{ content.rootpath }}{{ post.uri }}">{{ post.headline }}</a></h4>
             </header>
-            <a href="{{ content.rootpath }}{{ post.uri }}">{{ post.subheadline }} ...</a>
+
+            {% if post.subheadline is null %}
+            {% else %}
+                <a href="{{ content.rootpath }}{{ post.uri }}">{{ post.subheadline }}</a>
+            {% endif %}
         </article>
     </li>
 {% else %}
