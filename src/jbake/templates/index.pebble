@@ -9,7 +9,6 @@
         <p>{{ firstPost.subheadline }}</p>
     </header>
     {% if firstPost.image is null %}
-        <a href="{{ firstPost.uri }}" class="image main"><img src="{{ content.rootpath }}images/pic01.jpg" alt="" /></a>
     {% else %}
         <a href="{{ firstPost.uri }}" class="image main"><img src="{{ content.rootpath }}{{ firstPost.image }}" alt="" /></a>
     {% endif %}
