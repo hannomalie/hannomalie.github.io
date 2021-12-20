@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-02-13-copy-textures-opengl.html">Copy textures in OpenGL</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-02-13</span>
+        <h1>Copy textures in OpenGL</h1>
+        <p></p>
+    </header>
+            <p><p>Often, people need to postprocess textures, like with a blur or something. While it's sometimes possible to render to and sample from the same texture in OpenGL, it's not recommended, as long as rendering and sampling uses the same mipmap level. However, some cards and drivers let you do exactly this, but I guess most of the times you want to use kernels, you're screwed, because pixels are processed in parallel.<br />
+    <br />
+    One common approach is to use somthing that is called ping-ponging. You bind the texture to sample from to a texture unit and render to another texture. However, all other application components have to be aware that your fist texture doesn't contain the result they need, thus have to use the other texture, means the other texture handle id. This is sometimes very inconvenient and I didn't want to clutter my code - so I checked an alternative approach that modern OpenGL provides us: copy textures.<br />
+    <br />
+    With earlier OpenGL version, you had to do a fullscreen quad render pass or a framebuffer blit to duplicate textures, with version 4.3 you can do the equivalent of a memcopy. I duplicated my texture, set my source texture as a color attachment of a temporary rendertarget and set the duplicated texture to a texture unit for sampling. My method looks like (Java, used lwjgl):<br />
+    <br />
+    <script src="https://gist.github.com/hannespernpeintner/b14b280a9796224ebc44.js"></script>
+
+    <i><br /></i>
+    I modified the code so that it doesn't take a texture object but the attributes you know from OpenGL. Copying a <b>1280, 720-Texture</b> takes around <b>0.2 ms on my GTX 770</b>. I'm pretty sure it doesn't take much more time for a larger texture, but if you want me to test it, just leave a comment. Or if you need additional explanations. Somewhere I saw people having trouble with this simple functionality and most of the times it was because their textures were incomplete. That's why I added all those filter attributes etc.<br />
+    <br />
+    <br />
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

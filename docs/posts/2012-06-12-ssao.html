@@ -1,0 +1,279 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2012-06-12-ssao.html">Simple SSAO implementation (XNA 4.0)</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2012-06-12</span>
+        <h1>Simple SSAO implementation (XNA 4.0)</h1>
+        <p></p>
+    </header>
+        <div class="image main"><img src="../images/mitssil3_lightadded.PNG" alt="" /></div>
+        <p><p><h2>Why SSAO?</h2>
+Normally, games have baked indirect lighting and only local lighting models for dynamic objects and dynamic lights.
+Occlusion for dynamic lights is evaluated with shadow maps, but occlusion of indirect lighting is mostly absent.
+When one looks at the real world, illumination of an object standing on a flat ground is not clean, but partially darker at some places around it.
+Leaving alone that surfaces are nearly never completely flat at all - most materials are rough and bumpy.<br/>
+
+<a href="http://en.wikipedia.org/wiki/Screen_Space_Ambient_Occlusion">Screen Space Ambient Occlusion</a> therefore is a good thing for various reasons:
+First, it enhances the overall image quality of a video game because it offers a more believable lighting model.
+Second, it's easy to understand.
+Third, it can be implemented as a simple pixel shader in deferred renderers, so no need to change your whole architecture.
+And then, the effect can be extended to not only calculate occlusion but also indirect lighting (see my follow up post).
+<br />
+Here is a step by step recipe to implement SSAO.
+<br />
+<br />
+<h3>How does it work?</h3>
+<div>
+    My environment is given: XNA 4.0 und HLSL, because I recently did a project with that and I am currently used to it.
+    Not much needed besides that: The depth buffer, the color map, the normal map and a noise map.
+    Ah, before I forget: My implementation is based on various blog posts from the internet, for example <a href="http://www.gamerendering.com/category/lighting/ssao-lighting/">this one</a>.
+    Roughly spoken, for every pixel of the output image, we take a look at the depth value of some surrounding pixels.
+    We chose those points by randomly sampling a hemisphere around a pixel's position.
+    When they are closer to the camera, we can assume that the source pixel is behind them.
+    Which means they occlude the source pixel's surface, depending on the distance between each other.</div>
+<div>
+    <br /></div>
+<h4>Step 1: Gather samples randomly</h4>
+<div>
+    Of course it depends on your tech stack how exactly you need to implement this.
+    I just reimplemented a deferred rendering engine from a random XNA tutorial and pipe my maps as textures into a post effect shader.</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>float depth = tex2D(depthSampler,input.TexCoord).r;</i></div>
+    <div>
+        <i>float3 color = tex2D(colorSampler,input.TexCoord).rgb;</i></div>
+    <div>
+        <i>float3 noise = tex2D(noiseSampler,input.TexCoord).rgb;</i></div>
+    <div>
+        <i>float3 norm = tex2D(normalSampler,input.TexCoord).rgb;</i></div>
+</div>
+<div>
+    <br /></div>
+<div>
+    Now we need some randomness. When the sample count is known upfront, they can be precalculated with a distribution of your choice.</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>float3 pSphere[16] = {float3(0.53812504, 0.18565957, -0.43192),float3(0.13790712, 0.24864247, 0.44301823),float3(0.33715037, 0.56794053, -0.005789503),float3(-0.6999805, -0.04511441, -0.0019965635),float3(0.06896307, -0.15983082, -0.85477847),float3(0.056099437, 0.006954967, -0.1843352),float3(-0.014653638, 0.14027752, 0.0762037),float3(0.010019933, -0.1924225, -0.034443386),float3(-0.35775623, -0.5301969, -0.43581226),float3(-0.3169221, 0.106360726, 0.015860917),float3(0.010350345, -0.58698344, 0.0046293875),float3(-0.08972908, -0.49408212, 0.3287904),float3(0.7119986, -0.0154690035, -0.09183723),float3(-0.053382345, 0.059675813, -0.5411899),float3(0.035267662, -0.063188605, 0.54602677),float3(-0.47761092, 0.2847911, -0.0271716)};</i></div>
+</div>
+<div>
+    <br /></div>
+<div>
+    Next, we are going to generate normals that we need later for reflection.
+    This is where the noise map comes into action.
+    For every pixel of the output image, we have a random normal. It can be offset as well.</div>
+<div>
+    <br /></div>
+<div>
+    <i>float3 fres = normalize(noise*2) - float3(1.0, 1.0, 1.0);</i></div>
+<div>
+    <br /></div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>float3 ep = float3(input.TexCoord,currentPixelDepth);</i></div>
+</div>
+<div>
+    <br /></div>
+<div>
+    Then, my source has the sample radius depend on the depth - the bigger the depth, the bigger the radius to sample. This is a good idea, because
+    for things far away, distance in screen space may result in large distance in world space.
+    For <i>rad </i> my source uses a value of 0.006, which seems to be arbitrarily chosen.</div>
+<div>
+    <br /></div>
+<div>
+    <i>float radD = rad/currentPixelDepth;</i></div>
+<div>
+    <br /></div>
+<h4>Step 2: The loop</h4>
+<div>
+    Now, for every pixel, we need to do some steps.
+    Before the loop is done, we define our accumulator variables.
+</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>float bl = 0.0f;</i></div>
+    <div>
+        <i>float occluderDepth, depthDifference, normDiff;</i></div>
+</div>
+<div>
+    <br /></div>
+<div>
+    How many iterations the loop should have can be decided by you. The more the better regarding the quality of the effect.
+    For more than 16 samples, you will need a bigger random vector than I do.
+</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>for(int i=0; i&lt;9;++i)</i></div>
+    <div>
+        <i>&nbsp; &nbsp;{</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // Chose a vector from the hemisphere and reflect with noise vector</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; float3 ray = radD*reflect(pSphere[i],fres);</i><br />
+        <i><br /></i></div>
+    <div>
+    </div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // When the ray leaves the hemisphere, its direction is changed</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; float3 se = ep + sign(dot(ray,norm) )*ray;</i><br />
+        <i><br /></i></div>
+    <div>
+    </div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // Get depth value of occluder</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; float3 occluderFragment = tex2D(depthSampler,se.xy);</i><br />
+        <i><br /></i></div>
+    <div>
+    </div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // Get normal of the occluder</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; float3 occNorm = tex2D(normalSampler,se.xy).rgb;</i><br />
+        <i><br /></i></div>
+    <div>
+    </div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // When the difference is negative, the occluder is behind the current source pixel surface</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; depthDifference = currentPixelDepth-occluderFragment.r;</i><br />
+        <i><br /></i></div>
+    <div>
+    </div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // Dot product as a weight</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; normDiff = (1.0-dot(occNorm,norm));</i></div>
+    <div>
+        <i><br /></i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; // the falloff equation, starts at falloff and is kind of 1/x^2 falling</i></div>
+    <div>
+        <i>&nbsp; &nbsp; &nbsp; bl += step(falloff,depthDifference)*normDiff*(1.0-smoothstep(falloff,strength,depthDifference));</i></div>
+    <div>
+        <i>&nbsp; &nbsp;}</i></div>
+</div>
+<div>
+    <br /></div>
+<div>
+    The last step is important to have a smooth falloff. My falloff is 0.000002.
+</div>
+<div>
+    <br /></div>
+<h4>
+    Step 3: Finish</h4>
+<div>
+    After the loop, the occlusion value gets multiplied with an intensity factor and divided by the sample count-
+    <i>strength </i>is 0.07 here, <i>totStrength</i> is 1.38.
+    You can just return a single float, but take a look at my next post why I am already using a vector.
+</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        float ao = 1.0-totStrength*bl*invSamples;</div>
+    <div>
+        return float4(ao,ao,ao,ao);</div>
+</div>
+<div>
+    <br /></div>
+<h4>That was easy</h4>
+<div>
+    That's it. How many lines of code, 15? Of course this technique is not free from flaws and artifacts.
+    Just changing the radius too much leads to a lot of unwanted occlusion artifacts and since only
+    screen space is treated, only visible things have an effect.
+    I experiences some edge bleeding artifacts when depth values differ too much (?) that
+    even an additional blur pass was not able to mitigate (visible in the picutres below).
+    XNA 4.0 also only supports shader model 4.0, which means limited instruction count, which limits the quality of such an effect.
+    An additional blur pass is a must, though.
+</div>
+<div>
+    <br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+</div>
+<div>
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssaostrong.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="http://3.bp.blogspot.com/-Ih-_kWtYgFw/T9uzKNtBX7I/AAAAAAAAAA4/Ai-M7vZs5XE/s320/mitssaostrong.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">wtih SSAO</td></tr>
+    </tbody></table>
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ohnessao.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="http://3.bp.blogspot.com/-zZmT7HvZ9Tg/T9uzPRHSfBI/AAAAAAAAABA/twHpVU3L1CE/s320/ohnessao.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">without SSAO</td></tr>
+    </tbody></table>
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ssao.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="191" src="http://4.bp.blogspot.com/-pJ_PrcWW4A0/T9uzQ3pvutI/AAAAAAAAABI/LJclRM7yCic/s320/ssao.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">SSAO</td></tr>
+    </tbody></table>
+    <br />
+    Thansk for all those blog posts out there, really appreciate the information!
+<br /></div>
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

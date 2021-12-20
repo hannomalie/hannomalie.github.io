@@ -1,0 +1,151 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2018-02-13-koin-vs-vanilla.html">Koin vs Vanilla Kotlin</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2018-02-13</span>
+        <h1>Koin vs Vanilla Kotlin</h1>
+        <p>Comparing runtime performance of di with and without the Koin framework</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p>Here we go again: I'm searching for a performant, convenient solution for dependency injection in Kotlin. <b>Koin</b> got my attention, because it seems to be simple and straightforward. Since it uses a lot of small inline functions and seems to have only a few hotspots where performance suckers could lurk, it seemed very promising. But I wouldn't want to use it in my game engine project until I can be sure that the performance impact would be&nbsp;negligible. So I did a ... probably totally flawed microbenchmark, that doesn't show anything, but I want to dump it here nonetheless.<br />
+<br />
+So we have a simple service class and another service class that depends on the first service. The main module depends on the seconds service, so the chain has to be fulfilled. <br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #272822; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">MainModuleKoin</span> <span style="color: #f8f8f2;">:</span> <span style="color: #f8f8f2;">Module()</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #66d9ef;">override</span> <span style="color: #66d9ef;">fun</span> <span style="color: #a6e22e;">context</span><span style="color: #f8f8f2;">():</span> <span style="color: #f8f8f2;">Context</span> <span style="color: #f8f8f2;">=</span> <span style="color: #f8f8f2;">applicationContext</span> <span style="color: #f8f8f2;">{</span>
+        <span style="color: #f8f8f2;">provide</span> <span style="color: #f8f8f2;">{</span> <span style="color: #f8f8f2;">ServiceA()</span> <span style="color: #f8f8f2;">}</span>
+        <span style="color: #f8f8f2;">provide</span> <span style="color: #f8f8f2;">{</span> <span style="color: #f8f8f2;">ServiceB(</span><span style="color: #66d9ef;">get</span><span style="color: #f8f8f2;">())</span> <span style="color: #f8f8f2;">}</span>
+    <span style="color: #f8f8f2;">}</span>
+<span style="color: #f8f8f2;">}</span>
+<span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">MainModuleVanilla</span><span style="color: #f8f8f2;">(</span><span style="color: #66d9ef;">val</span> <span style="color: #f8f8f2;">serviceA:</span> <span style="color: #f8f8f2;">ServiceA,</span> <span style="color: #66d9ef;">val</span> <span style="color: #f8f8f2;">serviceB:</span> <span style="color: #f8f8f2;">ServiceB)</span>
+
+<span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">MainComponentKoin</span> <span style="color: #f8f8f2;">:</span> <span style="color: #f8f8f2;">KoinComponent</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #66d9ef;">val</span> <span style="color: #f8f8f2;">bla</span> <span style="color: #f8f8f2;">by</span> <span style="color: #f8f8f2;">inject&lt;ServiceB&gt;()</span>
+<span style="color: #f8f8f2;">}</span>
+<span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">MainComponentVanilla</span><span style="color: #f8f8f2;">(</span><span style="color: #66d9ef;">val</span> <span style="color: #f8f8f2;">bla:</span> <span style="color: #f8f8f2;">ServiceB)</span>
+
+<span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">ServiceA</span>
+<span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">ServiceB</span><span style="color: #f8f8f2;">(</span><span style="color: #66d9ef;">val</span> <span style="color: #f8f8f2;">serviceA:</span> <span style="color: #f8f8f2;">ServiceA)</span> <span style="color: #f8f8f2;">{</span>
+<span style="color: #f8f8f2;">}</span>&nbsp; </pre>
+</div>
+<br />
+Using Koin, one can simply write a few lines and everything is wired together automatically. Note that the Koin context has to be started and stopped, which has to be excluded from the benchmark later.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #272822; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #f8f8f2;">@JvmStatic</span> <span style="color: #66d9ef;">fun</span> <span style="color: #a6e22e;">benchmarkKoin</span><span style="color: #f8f8f2;">():</span> <span style="color: #f8f8f2;">ServiceB</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #66d9ef;">return</span> <span style="color: #a6e22e;">MainComponentKoin</span><span style="color: #f8f8f2;">().bla</span>
+<span style="color: #f8f8f2;">}</span>
+
+<span style="color: #f8f8f2;">@JvmStatic</span> <span style="color: #66d9ef;">fun</span> <span style="color: #a6e22e;">stopKoin</span><span style="color: #f8f8f2;">()</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #f8f8f2;">closeKoin()</span>
+<span style="color: #f8f8f2;">}</span>
+
+<span style="color: #f8f8f2;">@JvmStatic</span> <span style="color: #66d9ef;">fun</span> <span style="color: #a6e22e;">startKoin</span><span style="color: #f8f8f2;">()</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #f8f8f2;">startKoin(listOf(MainModuleKoin()))</span>
+<span style="color: #f8f8f2;">}</span>
+
+<span style="color: #f8f8f2;">@JvmStatic</span> <span style="color: #66d9ef;">fun</span> <span style="color: #a6e22e;">benchmarkVanilla</span><span style="color: #f8f8f2;">():</span> <span style="color: #f8f8f2;">ServiceB</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #66d9ef;">return</span> <span style="color: #a6e22e;">MainComponentVanilla</span><span style="color: #f8f8f2;">(ServiceB(ServiceA())).bla</span>
+<span style="color: #f8f8f2;">}</span>
+</pre>
+</div>
+<br />
+The benchmark is executed as follows, to ensure all object creation happens and context creation is done outside of the benchmarked code:<br />
+<br />
+<div style="background: #272822; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #f8f8f2;">@State(Scope.Thread)</span>
+<span style="color: #66d9ef;">public</span> <span style="color: #f8f8f2;">static</span> <span style="color: #66d9ef;">class</span> <span style="color: #a6e22e;">MyState</span> <span style="color: #f8f8f2;">{</span>
+
+    <span style="color: #f8f8f2;">@Setup(Level.Trial)</span>
+    <span style="color: #66d9ef;">public</span> <span style="color: #66d9ef;">void</span> <span style="color: #a6e22e;">doSetup</span><span style="color: #f8f8f2;">()</span> <span style="color: #f8f8f2;">{</span>
+        <span style="color: #f8f8f2;">KoinBenchmarkRunner.startKoin();</span>
+    <span style="color: #f8f8f2;">}</span>
+
+    <span style="color: #f8f8f2;">@TearDown(Level.Trial)</span>
+    <span style="color: #66d9ef;">public</span> <span style="color: #66d9ef;">void</span> <span style="color: #a6e22e;">doTearDown</span><span style="color: #f8f8f2;">()</span> <span style="color: #f8f8f2;">{</span>
+        <span style="color: #f8f8f2;">KoinBenchmarkRunner.stopKoin();</span>
+    <span style="color: #f8f8f2;">}</span>
+
+<span style="color: #f8f8f2;">}</span>
+<span style="color: #f8f8f2;">@Benchmark</span>
+<span style="color: #66d9ef;">public</span> <span style="color: #66d9ef;">void</span> <span style="color: #a6e22e;">benchmarkKoin</span><span style="color: #f8f8f2;">(Blackhole</span> <span style="color: #f8f8f2;">hole,</span> <span style="color: #f8f8f2;">MyState</span> <span style="color: #f8f8f2;">state)</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #f8f8f2;">hole.consume(KoinBenchmarkRunner.benchmarkKoin());</span>
+    <span style="color: #f8f8f2;">hole.consume(state);</span>
+<span style="color: #f8f8f2;">}</span>
+<span style="color: #f8f8f2;">@Benchmark</span>
+<span style="color: #66d9ef;">public</span> <span style="color: #66d9ef;">void</span> <span style="color: #a6e22e;">benchmarkVanilla</span><span style="color: #f8f8f2;">(Blackhole</span> <span style="color: #f8f8f2;">hole,</span> <span style="color: #f8f8f2;">MyState</span> <span style="color: #f8f8f2;">state)</span> <span style="color: #f8f8f2;">{</span>
+    <span style="color: #f8f8f2;">hole.consume(KoinBenchmarkRunner.benchmarkVanilla());</span>
+    <span style="color: #f8f8f2;">hole.consume(state);</span>
+<span style="color: #f8f8f2;">}</span>
+</pre>
+</div>
+<br />
+&nbsp;The result is somehow sobering<br />
+<br />
+<div style="background: #272822; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #f8f8f2;">Benchmark</span>                          <span style="color: #f8f8f2;">Mode</span>  <span style="color: #f8f8f2;">Cnt</span>          <span style="color: #f8f8f2;">Score</span>         <span style="color: #f8f8f2;">Error</span>  <span style="color: #f8f8f2;">Units</span>
+<span style="color: #f8f8f2;">BenchmarkRunner.benchmarkKoin</span>     <span style="color: #f8f8f2;">thrpt</span>  <span style="color: #ae81ff;">200</span>    <span style="color: #ae81ff;">1425585.082</span> <span style="background-color: #1e0010; color: #960050;">±</span>   <span style="color: #ae81ff;">31179.345</span>  <span style="color: #f8f8f2;">ops/s</span>
+<span style="color: #f8f8f2;">BenchmarkRunner.benchmarkVanilla</span>  <span style="color: #f8f8f2;">thrpt</span>  <span style="color: #ae81ff;">200</span>  <span style="color: #ae81ff;">106484919.110</span> <span style="background-color: #1e0010; color: #960050;">±</span> <span style="color: #ae81ff;">1121927.712</span>  <span style="color: #f8f8f2;">ops/s</span>&nbsp;&nbsp; </pre>
+</div>
+<br />
+Even though I'm aware that this is an artificial benchmark that may be flawed, it's pretty much clear that using Koin will have a huge impact on performance, that could make program infrastrucutre slower by a factor of 100. Of course, we're talking about dependency injection at object creation time, which should be a rare case in a game engine. Nonetheless, not too good from my sight.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2020-07-13-journey-kotlin-js-react.html">My journey with Kotlin/JS and React</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2020-07-13</span>
+        <h1>My journey with Kotlin/JS and React</h1>
+        <p>Currently experimental</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p>Honestly I have no idea what the purpose of this post could be, but I am really happy with Kotlin/JS and react and I want to write down my thoughts after implementing a real world administration application in my spare time. Maybe some of the sources I link can help somebody, maybe my experience can help someone in a similar position.<b></b><br />
+<b></b><br />
+This is the app I created:<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+    EDIT in 2021: The image is not available anymore, but imagine your generic 0815 bootstrap admin app ...
+</div>
+<br />
+It uses Kotlin/JS, Kotlin react wrapper, react, react-dom, react-router-dom, uuid, styled components, Kotlin coroutines.... the react hooks api, the react context api and Bootstrap 4.<br /><b><br />TLDR</b>: Even though Kotlin/JS is still experimental, i created a complete administration application using it and encountered only a few minor bugs. There's so much gain in being able to use gradle tooling and Kotlin as a language for me, that I would happily accept some minor bugs here.<br />
+<br />
+<h4>
+    Motivation</h4>
+I have to admit: I love Kotlin but I was very sceptical about its non-JVM targets, especially after reading a lot about Kotlin Native and its caveats. The thing is: I feel such a strong demand of frontend stuff, that it would be super super handy for a Kotlin team to be able to use the same language - and toolchain - for backend and frontend projects and even share libraries between the two targets. Maintaining builds and code on a high quality level is that much easier this way, polyglot really shows its costs there.<br />
+<br />
+<h4>
+    Chicken and egg</h4>
+<span style="font-weight: normal;">I would love to implement such a thing in the team at my company, but this is not an easy task: Kotlin/JS is still experimental. The next Kotlin version (1.4) will break binary compatibility for example because the compiler backend is switched completely. Given there is already Typescript, it's very very hard to convince people that another experimental technology might do a good job for the frontend. This results in the chicken-egg-problem: No one tries it, no one knows whether it works out well, no one gains experience, no one helps moving the platform forward, no one makes any progress. Arguing for a new technology reminds me of the time my team switched to Kotlin from Java for the backend. And after we did it, everyone was much happier than before. Getting the time to proof that a techology is worth it and can be used in production is key.</span><br />
+<br />
+<h4>
+    <b>Elephant in the room: JSX</b><b> </b></h4>
+The biggest downside of React with JavaScript is most probably JSX. It reminds me of the wild days when JSP was in. Not only does it require the build system to do very very complex stuff, but also I don't think it's a good idea to extend code with something that makes it code no more, mixing markup languages and programming languages, introducing many strange constructs that are mostly workarounds for naming clashes and identifiers that can't be mapped. Tooling has to be adjusted, knowledge has to be adjusted, code style has to be adjusted... <a href="https://twitter.com/sebmarkbage/status/1255886278437945344" target="_blank">This</a> is a proper comment on that. Do you know what is a nice way to write the UI? <a href="https://github.com/Kotlin/kotlinx.html" target="_blank">kotlinx html</a>. This is basically what everyone would be happy with. I am. There was only one missing piece in the workflow: When you get html based designs of the page you should program, you have to convert html to kotlin dsl. With JSX you can just paste the html into your component and modify it slightly for variable usage. For kotlin dsl, there is <a href="https://plugins.jetbrains.com/plugin/12205-html-to-kotlinx-html" target="_blank">this</a>, that lets you do the same, but additionally, you can just start refactor names, extracting methods and so on in the best IDE / one of the best IDEs out there.<br />
+<br />
+<h4>
+    <b>Hooks</b>&nbsp;</h4>
+The last time I used react was when hooks didn't exist. The usage of <i>setState</i> was so annoying for me, that I just didn't warm up with the framework at all, because state is the single most important aspect of the application code. Hooks are such a nice addition and make functional component usage so pleasant. Take a look at a simple <a href="https://play.kotlinlang.org/hands-on/Building%20Web%20Applications%20with%20React%20and%20Kotlin%20JS/10_Addendum_Modern_React_with_Hooks" target="_blank">example with kotlin</a>. It's hard not to like that. Now the downside: Hooks have <a href="https://reactjs.org/docs/hooks-rules.html" target="_blank">some constraints that are not too intuitive</a>. And now a proper downside: Even though I never used any return statements in kotlin, placed every hook usage at the top of the component, I got the infamous <i>rendered too few hooks </i>error... I wasn't able to figure it out exactly but I suspect it came from nested component usage where I had a fairly complex list based component that nested a lot of stuff. I removed the complex component completely, but if I weren't able to do that because of design requirements, I would have had a hard time with it.<br />
+<br />
+<h4>
+    <b>Build</b></h4>
+Everyone who knows me knows: Builds are really my métier. I am doing this excessively for many many years with different build systems and I always ensure projects have clean, stable, maintainable builds that enable proper development and testing workflows. Builds are one of those areas where having only <b>one</b> kind of them in the team is very beneficial, as all of the existing tooling can be reused. Being able to use gradle is a big plus for me <i>(note, gradle with kotlin, not gradle with groovy brrrr)</i>. Convince yourself of how easy and simple the gradle build of a Kotlin/JS project can be <a href="https://kotlinlang.org/docs/reference/js-project-setup.html" target="_blank">here</a> and <a href="https://play.kotlinlang.org/hands-on/Building%20Web%20Applications%20with%20React%20and%20Kotlin%20JS/02_Setting_up" target="_blank">here</a>. I can confirm that it works like that for a complete application development cycle. The good thing is, that the whole webpack stuff is hidden from you so that you don't have to bother with the whole mess. However, if necessary, you can configure things. And this is one of the two issues I faced during development: Hot reloading with the webpack development server. I had to apply <a href="https://discuss.kotlinlang.org/t/kotlin-js-react-unstable-building/15582/4" target="_blank">this workaround</a> as everyone seems to have to. Annoying to find out, not a problem anymore after the small fix.<br />
+<h4><br>
+    Final thoughts</h4>
+What can I say? I am very happy about what can already be done with Kotlin/JS. Finally, I can get back to frontend development with pleasure again, keeping all my gradle and kotlin love :)<p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

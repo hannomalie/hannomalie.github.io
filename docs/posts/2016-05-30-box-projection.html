@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2016-05-30-box-projection.html">Boxprojected G-Buffer cube maps for global illumination</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2016-05-30</span>
+        <h1>Realtime Importance Sampling with Boxprojected G-Buffer cube maps</h1>
+        <p>For Dynamic Global Illumination</p>
+    </header>
+        <div class="image main"><img src="../images/312771496-cover_compressed.png" alt="" /></div>
+        <p><p>Last year, I wrote my masther's thesis about global illumination effects in realtime rendering engines. Since I haven't yet published any infos, because I didn't know how, I finally do it now. The result of the thesis was an implementation of a custom deffered rendering engine with LWJGL.<br />
+ <br />
+ Addiotionally, I used something that is called boxprojection with cubemap datastructures. Furthermore, I modeled proxy objects (boxes) that I call <i>probes</i> - they are axis aligned bounding boxes with a corresponding cubemap, very much like a dynamic environment map. Instead of just one texture for a snapshot of the environment, I attached multiple textures for the exact same purpose that multiple textures are used for in G-Buffers for deferred rendering. Pre-Rendering all positions and material attributes of a whole level leaves us with the need to evaluate the lighting, when lighting conditions change. That is much cheaper than actually render the complete (environment) map again, like with traditional environment mapping. Additionally, the first and second pass shaders from the deferred rendering can be reused, instead of having additional forward shaders, as with regular environment mapping.<br />
+ <br />
+ At this point, one would be able to use those environment maps for perfect reflection mapping. Can be used for all dynamic and static objects, reflects static objects with dynamic lighting. But that's not enough; there's something called realtime importance sampling, that could use prefiltered cubemaps, to have a complete lighting model covered - that means specular and diffuse reflections with arbitrary lighting models. One just has to calculate the mipmaps for the cubemaps and everything will work. Another possible tweak is to precalculate the radiance for each cubemap and save it different roughness values in the mipmaps. Have a look at Unreal Engine 4's implementation. Thats how I implemented it to avoid the costly importance sampling in trade of quality.<br />
+ <br />
+ Since probes have to be placed within the level, on needs to blend between multiple probes. I implemented an algorithm from Sebastien Lagarde, similar to his approach in the game Remember Me.<br />
+ <br />
+ The result is pretty nice global illumination in high framerates with the possibility to alternate probe update over time, stream probes etc. It can run on my GTX 770 with framerates above 150 fps in the sponza scene - depending on additional quality settings, like multiple bounces etc. Here's a screenshot of what could be done, again, completey dynamic lighting, static geometry. Dynamic geometry would take more ressources.<br />
+ <br />
+<br />
+I will provide more info, if anybody is interested. </p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2019-02-23-multibounce-vct.html">Multibounce voxel cone tracing</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2019-02-23</span>
+        <h1>Multibounce voxel cone tracing</h1>
+        <p>Voxel cone tracing, but with multiple bounces of indirect light</p>
+    </header>
+            <p><p>It has been quite a while since I implemented a derivative of the classic voxel cone tracing with volume textures in my graphics engine that kind of applies deferred rendering with voxels in order to achieve multi bounce global illumination. The idea is to voxelize the whole scene to a voxel texture and save all parameters that are needed for lighting. Similar to the regular gbuffer in deferred rendering, positions (implicitly given by world space voxels..) normals and albedo can be sufficient. Additionally, my renderer writes a flag if the object is dynamic or static, in order to be able to cache voxel data for static objects, which massively speeds up voxelization proccess and just brings the whole thing closer to realtime capable.<br />
+Decoupling lighting from voxelization also frees enough frame time to implement multiple light bounces. Therefore, for n bounces, I added n light accumulation voxel texture targets. During voxel lighting, these are traced against. Although a second bounce can significantly enhance the scene's overall lighting. I struggled getting this to work with ping-ponging textures. I also struggled with parameters like samples on the hemisphere or tracing distance, cone aperture, etc. because in the voxel world, my default parameters for gbuffer tracing didn't lead to great results. Nonetheless, I wanted to share my results with you strangers, although I tend to discard this feature, because it&nbsp; doesn't make voxel cone tracing's light leaking problem less appearent....<br />
+<br />
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/oneTwoBounceComparison.png" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="640" src="../images/oneTwoBounceComparison.png" width="584" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">two bounces (first), one bounce (second)</td></tr>
+</tbody></table>
+<br />
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

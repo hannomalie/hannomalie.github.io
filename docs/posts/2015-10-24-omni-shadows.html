@@ -1,0 +1,106 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-10-24-omni-shadows.html">Single Pass Omnidirectional Shadow Mapping Evaluation</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-10-24</span>
+        <h1>Single Pass Omnidirectional Shadow Mapping</h1>
+        <p>Implementation and evaluation</p>
+    </header>
+            <p><p>Layered rendering is possible since geometry shaders entered the OpenGL stage. The rough idea of a good omnidirectional shadow mapping (for example for pointlights) is to render the complete shadow map with a single draw pass, in order to reduce the amount of rendercalls, compared to six-pass rendering with traditional rendering to a cubemap. Therefore, the geometry shader emits a vertex for each incoming vertex of the non-culled scene geometry to a face of the cubemap with something called layered rendering. While the idea is well described all over the internet already, every now and then, there is discussion about the efficiency of this method.<br />
+    <br />
+    My first idea was to evaluate omnidirectional shadow mapping with dual paraboloid shadow maps since it's the easiest way to achieve pointlight shadow: No viewmatrices, no projectionmatrices, two textures per pointlight, let's go. Without view frustum culling, I draw the complete geometry twice and passed a "backside" flag as a uniform variable for the second rendering. No layered rendering, just two depth buffers and two color attachments (can be ommited if no variance shadow mapping is used) for each pointlight (front and back). It's possible to do dpsm with a single-pass rendering in a single texture - I doubt it to be efficient because you would have to handle the depth buffer somehow. Or it will be efficient, but much more complicated.<br />
+    <br />
+    <b>Rendering a single (two texture) shadowmap for the famous sponza atrium takes ~1.5 ms on my GTX 770.</b><br />
+    <br />
+    Layered rendering however, took me a while for the implementation. Because I use array textures in order to be able to use many shadow mapped lights, I had to fight with the strange array indices for cubemap arrays. For everyone who is interested, here's how you create a cubemap array rendertarget and use it to draw your shadow maps:<br />
+    <br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> framebufferLocation = GL30.glGenFramebuffers();
+ // Create rendertarget
+ GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebufferLocation);
+ IntBuffer scratchBuffer = BufferUtils.createIntBuffer(colorBufferCount);
+ for (int i = 0; i &lt; colorBufferCount; i++) {
+      GL32.glFramebufferTexture(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0 + i, cubeMapArrays.get(i).getTextureID(), 0);
+      scratchBuffer.put(i, GL30.GL_COLOR_ATTACHMENT0+i);
+ }
+ // Use glDrawBuffers(GL_NONE) if you don't need color attachments but depth only
+ GL20.glDrawBuffers(scratchBuffer);
+ CubeMapArray depthCubeMapArray = new CubeMapArray(AppContext.getInstance().getRenderer(), 1, GL11.GL_LINEAR, GL14.GL_DEPTH_COMPONENT24);
+ int depthCubeMapArrayId = depthCubeMapArray.getTextureID();
+ GL32.glFramebufferTexture(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, depthCubeMapArrayId, 0);
+</code></pre>
+<br />
+Although some implementations are hidden because of my framework, the idea should be clear. Don't forget to initialize the cubemap array texture correctly or your framebuffer object won't be complete.<br />
+<br />
+Since the geometryshader decides which face to render to, you can pass the pointlight index as a uniform variable. The layer will then be&nbsp;<b>gl_Layer = 6*lightIndex + layer</b>.<br />
+<br />
+The quality is very nice, but unfortunetly, <b>rendering sponza into the cubemap takes ~8.3ms on my GTX 770. </b>The additional color attachment is not responsible for the expensiveness, since I tried to remove it. I'm pretty sure that I didn't do a major mistake in the implementation. It has to be the poor performance of the geometry shader that is responsible for the high amount of time this method takes.<br />
+<br />
+<h3>
+    Conclusion</h3>
+<br />
+<ul>
+    <li><b>Dual paraboloid shadow map rendering ~1.5 ms</b></li>
+    <li><b>Single pass cubemap shadow map rendering ~ 8.3 ms</b></li>
+</ul>
+<div>
+    <br /></div>
+<div>
+    I used 512*512 per dspm face or cubemap face. Would be nice to hear anyone alse's experience with omnidirectional shadowmapping.</div>
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

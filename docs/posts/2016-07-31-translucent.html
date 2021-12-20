@@ -1,0 +1,73 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2016-07-31-translucent.html">Simple deferred translucent foliage rendering</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2016-07-31</span>
+        <h1>Simple deferred translucent foliage rendering</h1>
+        <p>Only feasible for super thin objects</p>
+    </header>
+        <div class="image main"><img src="../images/foliage.PNG" alt="" /></div>
+        <p><p>Translucency seems to be one of the new illumination features that every graphics engine has to provide these days. The effect is most noticeable on organics, like skin (ears for example) and plant leafs. For the latter, there's a nice and easy way to implement it - this solution only works for very thin objects. This means double sided triangles, like paper, curtains, or leafs. Other cases would be more complicated.<br />
+ <br />
+ You should have a mechanism to support multiple material types in your deferred renderer already. Then you need to disable backface culling, or the back side of the object won't be rendered at all...Let's talk about direct illumination first. Light traveled through the object and direct light is treated at the same time. Since we assume that our translucent objects are infinitely thin, we don't need to determine a thickness, like you would have to, regularly. An artificial thickness can be provided via per-object parameter or through a texture. One could assume, that texture coordinates are the same for the point on the front and the back side of the currently rendered fragment. For normals, another assumption is possible: The normal on the back side should be the current fragment's normal, but just negated. Using different normals or diffuse texture for the backside is not easy to add here, since you can't know if you are currently rendering the front or the back side ob the object.<br />
+ <br />
+ After calculating the regular lighting, calculate the lighting with the artificial backface normal und multiply it with the object's thickness at this point. Add the two values and you're done. Even though the usage is limited to very thin and simple-colored objects, this can look very nice, for example with a curtain:<br />
+ <br />
+Look at the subtle shadow of the sphere above the curtain that you can now see from below the curtain.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

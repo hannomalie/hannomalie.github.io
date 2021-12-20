@@ -1,0 +1,165 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2019-02-24-multivolume-vct.html">Multivolume voxel cone tracing</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2019-02-24</span>
+        <h1>Multivolume voxel cone tracing</h1>
+        <p>Voxel cone tracing, but through multiple volumes</p>
+    </header>
+        <div class="image main"><img src="../images/multiVoxelGrids.PNG" alt="" /></div>
+        <p><p>Another feature experiment I nearly forgot to show you is voxel cone tracing with multiple voxel volumes. There are different approaches to support large scenes with voxel cone tracing:<br />
+<br />
+* Use a single volume texture and scale it to the scene's bounds. This increases a single voxel's world extents, which leads to coarser lighting and even more light leaking.<br />
+* Use sparse octree voxelization with a buffer instead of a volume texture. This is a way more complicated implementation. Additionally, the performance hit for lighting evaluation is quite big, compared to hardware-filtered volume texel fetching.<br />
+* Use cascaded voxel cone tracing, a similar approach to cascaded shadow maps. Revoxelization of the whole scene (or what's visible for the player) is quite demanding - implementations that only revoxelize objects on the border of the cascades are way more complex than the traditional, non-cascaded approach. Not using such an approach and revoxelizing everything every frame leads to flickering in the voxelization step, which can't be eliminated complettely due to the "binary" nature" of voxels (or at least I didn't manage to achieve it).<br />
+<br />
+My implementation goes a different way, that doesn't suffer from the above problems, by introducing world space voxel volumes. Instead of a single big one, there are many smaller ones. There are many advantages now:<br />
+<br />
+* Not all voxel volumes have to be updated every frame - one can update the nearest n volumes per frame, depending on the given hardware specs.<br />
+* There can be higher resolutions where needed and less resolution where coarse illumination is sufficient.<br />
+* Since everything is in world space, no flickering on revoxelization - at least when materials change. For dynamic objects, one still has to do some tricks or use temporal filtering with multiple bounces or sth.<br />
+* Theoretically, the voxel data could be precalculated and streamed in.<br />
+<br />
+<br />
+I put a sized list of VoxelGrid entries into a generic buffer that my avaluation compute shaders can read. My VoxelGrid data structure is as simple as the following.
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">struct</span> <span style="color: #d0d0d0;">VoxelGrid</span> <span style="color: #d0d0d0;">{</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">albedoGrid;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">normalGrid;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">grid;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">grid2;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">resolution;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">resolutionHalf;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">dummy2;</span>
+   <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">dummy3;</span>
+   <span style="color: #6ab825; font-weight: bold;">mat4</span> <span style="color: #d0d0d0;">projectionMatrix;</span>
+   <span style="color: #6ab825; font-weight: bold;">vec3</span> <span style="color: #d0d0d0;">position;</span>
+   <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">scale;</span>
+   <span style="color: #d0d0d0;">uvec2</span> <span style="color: #d0d0d0;">albedoGridHandle;</span>
+   <span style="color: #d0d0d0;">uvec2</span> <span style="color: #d0d0d0;">normalGridHandle;</span>
+   <span style="color: #d0d0d0;">uvec2</span> <span style="color: #d0d0d0;">gridHandle;</span>
+   <span style="color: #d0d0d0;">uvec2</span> <span style="color: #d0d0d0;">grid2Handle;</span>
+ <span style="color: #d0d0d0;">};</span>
+</pre>
+</div>
+<br />
+As mentioned in an earlier post, my volumes use a kind of deferred rendering to cache geometry properties and onyl recaclulate lighting information when necessary, hence the need for 4 texture attachments - one for albedo, one for normals, and two for multiple bounces of gi.<br />
+<br />
+The resolution (and the helper resolutionHalf) determine the resolution of the volume texture. This is needed, because the size of a volume can be arbitrary, while the resolution is fixed at some time, leading to arbitrary world space sizes for a single voxel.<br />
+<br />
+Besides a little bit of padding, I also save the projection matrix that is used to voxelize objects into this volume. This isn't needed during evaluation, but I wanted to use a single data structure for both steps of the pipeline.<br />
+<br />
+Since the texture ids don't give you much when using multiple volumes any more (you don't want to bind anything anymore...), those can be erased by now. What I use is bindless handles for everything, hence the long texture handles for the said four textures, passed in as uvec2 data types.<br /><br/>
+<h3>
+    Tracing</h3>
+Now the interesting part. When only a few volumes are used, let's say 5-10 or something, the tracing can easily be implemented as brute force iteration over an array. I don't think more volumes are practical, as each volume needs a lot of memory, and there comes the point where classic sparse voxel octrees are simply more efficient.<br />
+<br />
+When implementing the tracing, I realized, that I want to favour higher resolution volumes when volumes overlap. Besides that, the tracing is quite simple: Take the gbuffer's world space position and trace diffuse or/and specular lighting in as many directions as you like. The sampling diameter increases with distance and determines the mipmap level to sample from.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;">    <span style="color: #6ab825; font-weight: bold;">vec4</span> <span style="color: #d0d0d0;">accum</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">vec4</span><span style="color: #d0d0d0;">(</span><span style="color: #3677a9;">0.0</span><span style="color: #d0d0d0;">);</span>
+    <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">alpha</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">0</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">dist</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">0</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">vec3</span> <span style="color: #d0d0d0;">samplePos</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">origin;</span><span style="color: #999999; font-style: italic;">// + dir;</span>
+
+    <span style="color: #6ab825; font-weight: bold;">while</span> <span style="color: #d0d0d0;">(dist</span> <span style="color: #d0d0d0;">&lt;=</span> <span style="color: #d0d0d0;">maxDist</span> <span style="color: #d0d0d0;">&amp;&amp;</span> <span style="color: #d0d0d0;">alpha</span> <span style="color: #d0d0d0;">&lt;</span> <span style="color: #3677a9;">1.0</span><span style="color: #d0d0d0;">)</span>
+    <span style="color: #d0d0d0;">{</span>
+        <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">minScale</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">100000.0</span><span style="color: #d0d0d0;">;</span>
+        <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">canditateIndex</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">-</span><span style="color: #3677a9;">1</span><span style="color: #d0d0d0;">;</span>
+        <span style="color: #d0d0d0;">VoxelGrid</span> <span style="color: #d0d0d0;">voxelGrid;</span>
+        <span style="color: #6ab825; font-weight: bold;">for</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">voxelGridIndex</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">0</span><span style="color: #d0d0d0;">;</span> <span style="color: #d0d0d0;">voxelGridIndex</span> <span style="color: #d0d0d0;">&lt;</span> <span style="color: #d0d0d0;">voxelGridArray.size;</span> <span style="color: #d0d0d0;">voxelGridIndex++)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">VoxelGrid</span> <span style="color: #d0d0d0;">candidate</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">voxelGridArray.voxelGrids[voxelGridIndex];</span>
+            <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(isInsideVoxelGrid(samplePos,</span> <span style="color: #d0d0d0;">candidate)</span> <span style="color: #d0d0d0;">&amp;&amp;</span> <span style="color: #d0d0d0;">candidate.scale</span> <span style="color: #d0d0d0;">&lt;</span> <span style="color: #d0d0d0;">minScale)</span> <span style="color: #d0d0d0;">{</span>
+                <span style="color: #d0d0d0;">canditateIndex</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">voxelGridIndex;</span>
+                <span style="color: #d0d0d0;">minScale</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">candidate.scale;</span>
+                <span style="color: #d0d0d0;">voxelGrid</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">candidate;</span>
+            <span style="color: #d0d0d0;">}</span>
+        <span style="color: #d0d0d0;">}</span>
+
+        <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">minVoxelDiameter</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">0.25</span><span style="color: #d0d0d0;">f*voxelGrid.scale;</span>
+        <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">minVoxelDiameterInv</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">1.0</span><span style="color: #d0d0d0;">/minVoxelDiameter;</span>
+        <span style="color: #6ab825; font-weight: bold;">vec4</span> <span style="color: #d0d0d0;">ambientLightColor</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">vec4</span><span style="color: #d0d0d0;">(</span><span style="color: #3677a9;">0.</span><span style="color: #d0d0d0;">);</span>
+        <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">diameter</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">max(minVoxelDiameter,</span> <span style="color: #3677a9;">2</span> <span style="color: #d0d0d0;">*</span> <span style="color: #d0d0d0;">coneRatio</span> <span style="color: #d0d0d0;">*</span> <span style="color: #d0d0d0;">(</span><span style="color: #3677a9;">1</span><span style="color: #d0d0d0;">+dist));</span>
+        <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">increment</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">diameter;</span>
+
+        <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(canditateIndex</span> <span style="color: #d0d0d0;">!=</span> <span style="color: #d0d0d0;">-</span><span style="color: #3677a9;">1</span><span style="color: #d0d0d0;">)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #6ab825; font-weight: bold;">sampler3D</span> <span style="color: #d0d0d0;">grid;</span>
+            <span style="color: #999999; font-style: italic;">// sample grid here</span>
+        <span style="color: #d0d0d0;">}</span>
+
+        <span style="color: #d0d0d0;">dist</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">increment;</span>
+        <span style="color: #d0d0d0;">samplePos</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">origin</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">dir</span> <span style="color: #d0d0d0;">*</span> <span style="color: #d0d0d0;">dist;</span>
+        <span style="color: #d0d0d0;">increment</span> <span style="color: #d0d0d0;">*=</span> <span style="color: #3677a9;">1.25</span><span style="color: #d0d0d0;">f;</span>
+    <span style="color: #d0d0d0;">}</span>
+ <span style="color: #6ab825; font-weight: bold;">return</span> <span style="color: #6ab825; font-weight: bold;">vec4</span><span style="color: #d0d0d0;">(accum.rgb,</span> <span style="color: #d0d0d0;">alpha);</span>
+</pre>
+</div>
+<br />
+The results are quite nice, with mixed resolutions and sizes of volumes. Here's an example of a transition between a fine and a coarse volume:<br />
+<br />
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="https://1.bp.blogspot.com/-1EO0myuuZY8/XHJf78yoX0I/AAAAAAAAEO4/FYjzEDiTiM4B-xqXTNUGQOYphS4oC9ZXgCLcBGAs/s1600/multiVoxelGrids.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" data-original-height="718" data-original-width="1282" height="358" src="https://1.bp.blogspot.com/-1EO0myuuZY8/XHJf78yoX0I/AAAAAAAAEO4/FYjzEDiTiM4B-xqXTNUGQOYphS4oC9ZXgCLcBGAs/s640/multiVoxelGrids.PNG" width="640" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">coarse and fine voxel volume side by side</td></tr>
+</tbody></table>
+Unfortunately, the performance of my tracing is not that good. It's remarkably slower than the single volume tracing, and I'm not too certain why this is the case. My test scene contained 4 volumes and decreased performance below 30 fps on my GTX 1060, to it's not capable of being realtime anymore. And I'm talking about avaluation only - no voxelization done here.<br />
+<br />
+This again leads me to the conclusion, that voxel cone tracing is just too heavy on resources to be practical. I got the idea of using binary voxelization and only use voxels for occlusion and soft shadows, but evaluate global illumination from precomputed volumes. Much cheaper, no synchronization between voxelization threads and in general just a lot cheaper.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

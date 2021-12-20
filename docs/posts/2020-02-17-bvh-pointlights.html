@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2020-02-17-bvh-pointlights.html">BVH accelerated point light shading</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2020-02-17</span>
+        <h1>BVH accelerated point light shading</h1>
+        <p>In deferred rendering</p>
+    </header>
+        <div class="image main"><img src="../images/500pointlights.png" alt="" /></div>
+        <p><p>My engine uses a lot of modern techniques like programmable vertex pulling, persistent mapped buffer based multi threaded rendering with a ring buffer and at the core of these techniques, there is this concept of a simple structured buffer. Experiments with compute based ray tracing on kd- and octrees led me to stackless tree traversal on the gpu, which is very very interesting and can be easily found on the internet. And occasionally, I found <a href="https://worldoffries.wordpress.com/2015/02/19/simple-alternative-to-clustered-shading-for-thousands-of-lights/#Ref1" target="_blank">this article</a> about an alternative to all those clustered, forward plus deferred tile based or whatever approaches for a massive amount of lights. I highly recommend reading it and all the other nice posts over there. He got my interest. I heard about light bvhs only for offline renderers. And structured buffers? I have them. Compute shaders, I have them. My point lights? Yea, maybe I have many of them, but they mostly don't move. And than again, I need rendering and light evaluation not only for my deferred rendering pass, but also for my transparency pass, a regular grid of environment probes or my voxel cone tracing grid...<br />
+<br />
+Long story short, implementing a basic version was very easy, because the concept is so simple.<br />
+<span id="goog_572497291"></span><span id="goog_572497292"></span><br />
+<br />
+<div style="text-align: center;">
+    <a href="http://3.bp.blogspot.com/-dFPhklLsts0/XksOpdYQjiI/AAAAAAAAFyI/aFmBsDYK8FMji47NeQnHTBjCkseT-AonwCK4BGAYYCw/s1600/100lights.png" imageanchor="1"><img border="0" height="210" src="https://3.bp.blogspot.com/-dFPhklLsts0/XksOpdYQjiI/AAAAAAAAFyI/aFmBsDYK8FMji47NeQnHTBjCkseT-AonwCK4BGAYYCw/s400/100lights.png" width="400" /></a></div>
+<br />
+<br />
+<br />
+Assuming a static tree, my implementation
+needs <b>~10ms</b> for 100 point lights instead of <b>~34ms</b> in the most trivial compute shader in the  quite dense configuration above on my crappy notebook with integrated intel card. In a less dense configuration, the time goes down to <b>~4ms </b>and less. It really depends on the amount of overlapping volumes and how efficient the tree is. 500 pointlights scattered over the Sponza atrium takes below <b>30ms</b>.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+    <a href="http://2.bp.blogspot.com/-wk6k5ZUeTXk/Xkxi2-GINFI/AAAAAAAAFyU/d8YmtCfzj6wgjCg0q5Ll_L3ADAPwlwDcQCK4BGAYYCw/s1600/500pointlights.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="222" src="https://2.bp.blogspot.com/-wk6k5ZUeTXk/Xkxi2-GINFI/AAAAAAAAFyU/d8YmtCfzj6wgjCg0q5Ll_L3ADAPwlwDcQCK4BGAYYCw/s400/500pointlights.png" width="400" /></a></div>
+<br />
+<br />
+<b>BVH update</b>: The most tricky and also the most costly part of the whole thing is
+probably the creation and update of the BVH which I haven't
+implemented efficiently yet. My creation happens on any light movement and clusters lights or inner nodes recursively into buckets of 4. 4 gave me better performance than 8 as in the blog post, probably because my light struct layout is not very efficient.<br />
+<br />
+<b>Sphere union</b>: The implementation to find an enclosing sphere for n spheres is from <a href="https://github.com/hbf/miniball" target="_blank">here</a>. I'm not too sure that a really optimal sphere is found, but since I'm feeding every sphere's aabb corner points into the library, some efficiency is already wasted on my side or the program.<br />
+<br />
+<br />
+<br />
+<br />
+<br /></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

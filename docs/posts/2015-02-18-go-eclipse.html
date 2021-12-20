@@ -1,0 +1,76 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-02-18-go-eclipse.html">Using Go with eclipse</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-02-18</span>
+        <h1>Using Go with eclipse</h1>
+        <p></p>
+    </header>
+            <p><p>I like how different platfoms like Java, C++, build tools like maven, gradle etc. are integrated in eclipse via its extension mechanisms. So the first fight every tool that wants me to use it has to win is its eclipse integration. Because the usage of Google's Go with eclipse isn't a complete no-brainer, I want to share the way I did my setup. So here's a guide how you can setup Go on Windows, with eclipse luna.<br />
+    <br />
+    <br />
+<ol>
+    <li><b>Install your go distribution</b><br />You can download your distribution from&nbsp;<a href="https://golang.org/dl/" target="_blank">the official download page</a>. The installation is quite easy. After completion, ensure that your environment variable <b>GOROOT </b>points to your Go folder. The variable <b>GOPATH </b>should point to your chosen workspace, in the means of where you want to place your Go projects. Or where you have any libs or other Go code. This sounds like an easy job, but seems to be confusing for half the internet, me included. It turns out that every directory in the go path has to have a well described structure, that you can find&nbsp;<a href="http://golang.org/cmd/go/#hdr-GOPATH_environment_variable" target="_blank">here</a>. We will take another look later, when the run configuration in elcipse is confiured. You can check if Go is properly installed via a shell with "go version".</li>
+    <li><b>Install eclipse integration</b><br />Within eclipse (luna) go to <i>Help -&gt; Install new software</i> and use&nbsp;<i>http://goclipse.github.io/releases/ </i>as path. Chose the GoClipse project and install.</li>
+    <li><b>Create a Go project</b><br />This is fairly easy: Restart your eclipse, chose <i>File -&gt; new Project -&gt; Go Project </i>. You could check the box for automatic main method generation. Now slow down, first chance to waste time ahead: You should create a subfolder in <i>src </i>because if you just place your first Go file in the source folder and try to execute it, you would get <i>go install: no install location for directory </i>as a response. Also not nice is that eclipse auto generates a main.go file and places it right in the wrong folder...Took me half an hour to figure out that not my Go installation is the cause, but that I placed the source file in the top source folder. Don't do that. Create a Go file, your main function if not already done.</li>
+    <li><b>Adjust your path</b><br />As said before, the GOPATH variale shows your workspace. If you have several IDEs or several projects, it could be useful to use the run configurations to override the path. Therefore, open <i>Window -&gt; Preferences -&gt; Go.</i>&nbsp;This is where you could set a path for your eclipse executions if your default path is not the right one.</li>
+    <li><b>Add a debugger</b><br />Probably the most interesting part. Since Go is a compiled language, you have to work with debug symbols. I think Go's compiler is based on the GCC, therefore you can use the GDB. On Windows, you could get trouble finding it, so&nbsp;<a href="http://sourceforge.net/projects/mingw-w64/files/External%20binary%20packages%20%28Win64%20hosted%29/gdb/" target="_blank">here</a>&nbsp;is your link. Install wherever you like it and afterwards, go back to your eclipse. Right-click your project and chose <i>Debug Configurations. </i>Select the <i>Debugger</i>&nbsp;tab and tell your IDE where your gdb.exe can be found. Uncheck the box <i>Stop on startup at main</i>&nbsp;because this won't work with your go program and apply the settings. Now you can use eclipse debugging as you know it, with breakpoints and stepping and stuff. Remember that go programs are not fully compatible to gdb, so there will be some issues. Let me correct myself: There will be many issues. Doesn't work very nice at all. But at least you can use it.</li>
+</ol>
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

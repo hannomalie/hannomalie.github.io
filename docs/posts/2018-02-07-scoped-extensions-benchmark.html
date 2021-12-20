@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2018-02-07-scoped-extensions-benchmark.html">Kotlin&#39;s scoped extensions micro-benchmarked</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2018-02-07</span>
+        <h1>Kotlin&#39;s scoped extensions micro-benchmarked</h1>
+        <p>How do they get compiled, what is the runtime cost we can expect?</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p>My last post was about an approach to use Kotlin's scoped extension methods to implement an application with data oriented design paradigm. Yes, I'm still coding that game engine, that's why I had to do a simple benchmark, just to get a feeling how performance could get better or worse. See it as a brain dump. Very unprofessional benchmark with the println statement, but I wanted to get the relation between the simple baseline implementation and the extension method version, like this:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">import</span> <span style="color: #d0d0d0;">org.openjdk.jmh.annotations.Benchmark</span>
+
+<span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">Extension&lt;ELEMENT&gt;{</span>
+    <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">ELEMENT.prettyPrint()</span> <span style="color: #d0d0d0;">{</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Default pretty "</span> <span style="color: #d0d0d0;">+</span> <span style="color: #6ab825; font-weight: bold;">this</span><span style="color: #d0d0d0;">)</span> <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+
+<span style="color: #d0d0d0;">object</span> <span style="color: #d0d0d0;">StringListExtension</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">Extension&lt;String&gt;</span>
+
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">&lt;T&gt;</span> <span style="color: #d0d0d0;">someFrameWorkFunction(parameter</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">T,</span> <span style="color: #d0d0d0;">extensionProvider:</span> <span style="color: #d0d0d0;">Extension&lt;T&gt;)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">with(extensionProvider)</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">parameter.prettyPrint()</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+
+<span style="color: #d0d0d0;">@Benchmark</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">extension</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">someFrameWorkFunction(</span><span style="color: #ed9d13;">"asd"</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">StringListExtension)</span>
+<span style="color: #d0d0d0;">}</span>
+
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">String.prettyPrint()</span> <span style="color: #d0d0d0;">{</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Default pretty "</span> <span style="color: #d0d0d0;">+</span> <span style="color: #6ab825; font-weight: bold;">this</span><span style="color: #d0d0d0;">)</span> <span style="color: #d0d0d0;">}</span>
+
+<span style="color: #d0d0d0;">@Benchmark</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">baseline</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #ed9d13;">"asd"</span><span style="color: #d0d0d0;">.prettyPrint()</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+Surprising results again:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">Benchmark</span>                            <span style="color: #d0d0d0;">Mode</span>  <span style="color: #d0d0d0;">Cnt</span>       <span style="color: #d0d0d0;">Score</span>       <span style="color: #d0d0d0;">Error</span>  <span style="color: #d0d0d0;">Units</span>
+<span style="color: #d0d0d0;">BenchmarkRunner.benchmarkBaseline</span>   <span style="color: #d0d0d0;">thrpt</span>  <span style="color: #3677a9;">200</span>  <span style="color: #3677a9;">269087.160</span> <span style="background-color: #e3d2d2; color: #a61717;">±</span> <span style="color: #3677a9;">17915.393</span>  <span style="color: #d0d0d0;">ops/s</span>
+<span style="color: #d0d0d0;">BenchmarkRunner.benchmarkExtension</span>  <span style="color: #d0d0d0;">thrpt</span>  <span style="color: #3677a9;">200</span>  <span style="color: #3677a9;">329648.131</span> <span style="background-color: #e3d2d2; color: #a61717;">±</span> <span style="color: #3677a9;">19646.005</span>  <span style="color: #d0d0d0;">ops/s</span>
+</pre>
+</div>
+<br />
+Once again, the opposite of my expectations.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

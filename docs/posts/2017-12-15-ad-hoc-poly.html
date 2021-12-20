@@ -1,0 +1,201 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2017-12-15-ad-hoc-poly.html">Delegation and Ad-hoc polymorphism in Kotlin</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2017-12-15</span>
+        <h1>Delegation and Ad-hoc polymorphism in Kotlin</h1>
+        <p>Is it practible?</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p><i>CAUTION: This post got somewhat long :/ TLDR: You can effectively use Kotlin's delegation if you want to mimic ad-hoc polymorphism.</i><br />
+    <br />
+    I was always fascinated by ad-hoc polymorphism. The clear separation between data and behavior that can for example be achieved with tools like Scala's type classes, is especially useful when combined with data oriented design, which is important for game development as well for example.<br />
+    <br />
+    I realized, that the usefulness depends heavily on how this feature can be integrated and supported by the programming language you work with.<br />
+    <br />
+    For example in Go, you don't have to implement an interface explicitly - if your 'class' (Go doesn't have classes) satisfies the contract of the interface, it is virtually implemented. That means you can safely pass your instance of your class into a method that expects an interface. I like that this is called static duck typing. This is a form of structural typing, because your instance is typed by parts of its definition. Structural typing has many advantages, but also the disadvantage that code can break or fail at runtime, when said interfaces change visibly or invisibly. Also, there's the potential of naming clashes, for example if two interfaces have methods with the same name/signature. Although I don't know anyhing about the internal implementation of Go's structural typing, I suggest that the whole system works without creating wrappers under the hood.<br />
+    <br />
+    In languages like Java and Scala, we don't have this luxury, or rather we have to solve slightly different problems here. I find Scala's solution a very good one - but I don't know too many comparable others :) The type classes combined with implicits are a very good example of how to integrate this feature into a statically typed language (<a href="http://danielwestheide.com/blog/2013/02/06/the-neophytes-guide-to-scala-part-12-type-classes.html" target="_blank">This </a>is a very nice post that pretty much answers all questions about how those type classes and implicits in Scala work).<br />
+    <br />
+    And here's the big <b>but</b> (and I can not lie..): The feature is very infamous by people that don't use Scala and even infamous by some people who do use it. My humble opinion is, that it boils down to the old problem: As a programmer, you read more code than you write. That should imply, that the ability to read code more easily is more important than the ability to write code easily. I would like to correct this statement slightly: It's more important to be able to easily read and <i>understand</i> what's happening. Very concise code is nice to read, because it hides a large amount of information - but there is a thin red line that should not be crossed when hiding information. Problem here is, that this is very subjective to a degree. One of the biggest critics to Scala is the complex implicit resolution, where people really struggle to understand it and even the compile times suffer drastically from it. This weakness is so clearly a problem not only for mediocre programmers, non-library developers but also for code quality of a project in general, that the Kotlin creators decided to leave ad-hoc polymorphism out of the language until now.<br />
+    <br />
+    At the time of writing this, similar blog posts to my thoughts were created <a href="http://beust.com/weblog/2016/06/20/ad-hoc-polymorphism-in-kotlin/" target="_blank">here</a> and <a href="https://ashishchaudhary.in/extending-an-objects-api-with-delegation-in-kotlin" target="_blank">here</a>. And in fact, even after reading the whole <a href="https://discuss.kotlinlang.org/t/type-classes-in-kotlin/410/4" target="_blank">language improvement suggestion for ad-hoc polymorphism</a>, I'm not quite sure if ad-hoc polymorphism without something comparable to Scala's implicits makes sense at all. Here's a small example of a situation where the usage of ad-hoc polymorphism would be appropriate: You have an interface and some implementations of this interface. The interface is consumed by some methods, one of them is <i>someFrameWorkFunction:</i><br />
+    <br />
+    <!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">MyInterface</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">myInterfaceMethod</span><span style="color: #d0d0d0;">()</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">MiOwnImplementation</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">MyInterface</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">myInterfaceMethod</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"This is my own implementation"</span><span style="color: #d0d0d0;">)</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">someFrameWorkFunction</span><span style="color: #d0d0d0;">(parameter:</span> <span style="color: #d0d0d0;">MyInterface)</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">parameter.myInterfaceMethod()</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">main</span><span style="color: #d0d0d0;">(args:</span> <span style="color: #d0d0d0;">Array)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">someFrameWorkFunction(MiOwnImplementation())</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+Everything is fine until you have to integrate code that's outside of your control. As the following class, that may already have the functionality you need implemented, but with a wrong method signature and without your interface (because where should people get your interface from...):<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">ForeignImplementation</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">printSomething</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"This is a foreign implementation"</span><span style="color: #d0d0d0;">)</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+Irrelevant which solution you take to integrate this foreign implementation, one thing is for sure: you need a description how the needed functions are implemented, hence a mapping from interface methods to implementation methods.<br />
+<br />
+This could do the job in Kotlin, nothing fancy.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf;">MyFacade</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">impl:</span> <span style="color: #d0d0d0;">ForeignImplementation)</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">MyInterface</span> <span style="color: #d0d0d0;">{</span>
+   <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">myInterfaceMethod</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">impl.printSomething()</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+Afterwards, we can use our implementation like this. Alternatively, we can use Kotlin's equivalent of an anonymous class, an object:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">main</span><span style="color: #d0d0d0;">(args:</span> <span style="color: #d0d0d0;">Array)</span> <span style="color: #d0d0d0;">{</span>
+   <span style="color: #d0d0d0;">someFrameWorkFunction(MiOwnImplementation())</span>
+   <span style="color: #d0d0d0;">someFrameWorkFunction(object</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">MyInterface</span> <span style="color: #d0d0d0;">{</span>
+     <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">impl</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">ForeignImplementation()</span>
+     <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">myInterfaceMethod</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">impl.printSomething()
+  }
+}
+</span></pre>
+</div>
+<br />
+With an implicit resolution algorithm, one could write<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">someFrameWorkFunction(ForeignImplementation())</span>
+</pre>
+</div>
+<br />
+instead of explicitly instantiating one's own facade.<br />
+<br />
+The question here is: Is the implicit resolution worth the hassle that one now has to search for the conversion definition? Is the example with the explicit conversion that much worse readable? In my opinion, until now, there's no reason to not state the conversion explicitly. Only with taking the feature even further, it makes sense to have it - for example because you are used to using contextual objects as implicit parameters, as they are embedded in the language, like in Scala. For example it's possible to provide default implementations that can be imported by the user of your library. Without such a feature, one would have to provide overloads of a method that takes types as parameters. Kotlin won't benefit from it, instead it would be an artificial feature that is limited to one situation.<br />
+Swift on the other side allows for extensions, that can have an existing class implement an interface with some limitations I don't know in particular. Extensions are automatically available through module import. So they are somewhat comparable to what Scala can do, because your module can contain all the default extensions and make them available for the user.<br />
+<br />
+In general, the separation of state and behavior could become the default option and ad-hoc polymorphism could be the default over parametric polymorphism. But on the JVM, you will have to pay for the wrapping class, so this is probably not the most wise idea. Extension functions on the other hand seem to extend a class's interface but does it via syntactic sugar and static dispatch. That means the extension can be imported on the callee's side, whereas class extensions or type classes are chosen by the caller.<br />
+<br />
+So let's think about a more complex scenario. The interface our framework method accepts is a more complex one, that extends the List interface and provides a <i>getLast()</i> method that doesn't throw an exception if the list is empty, but returns a nullable reference. This can be a default implementation that uses an abstract property. Additionally, a real interface method is declared for prettyprinting, that classes have to implement.<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">MyList&lt;T&gt;</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">List&lt;T&gt;</span> <span style="color: #d0d0d0;">{</span>
+   <span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">list:</span> <span style="color: #d0d0d0;">List&lt;T&gt;</span>
+   <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">getLast</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">T?</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">if</span> <span style="color: #d0d0d0;">(!list.isEmpty())</span> <span style="color: #d0d0d0;">list.last()</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">null</span>
+   <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">prettyPrint</span><span style="color: #d0d0d0;">()</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+Since one can only delegate to constructor parameters and new instances in Kotlin, there is no way to have MyList provide default implementations for all List methods just by delegating to the abstract property list. This limitation prohibits using a simple inline object declaration in a method that consumes a MyList interface because you would have to implement all methods of the List interface or create a local list outside of the statement.<br />
+A solution would be to create a simple Implementation (as one could and should typically with heavy use of delegation), that implements the List interface by itself with delegation, like:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf;">MyListImpl</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">list</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">List&lt;T&gt;)</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">MyList&lt;T&gt;,</span> <span style="color: #d0d0d0;">List&lt;T&gt;</span> <span style="color: #d0d0d0;">by</span> <span style="color: #d0d0d0;">list</span> <span style="color: #d0d0d0;">{</span>
+   <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">prettyPrint</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Pretty: "</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">super.toString())</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+So the framework method can be called like<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">someFrameWorkFunction(MyListImpl(emptyList()))</span>
+</pre>
+</div>
+<br />
+While this is not ad-hoc polymorphism by definition, under the hood it's equivalent to comparable solutions. Delegation can help to overcome many of the pain points when the need to satisfy interfaces with existing classes emerge. As for a general purpose usage of type classes, one has to keep in mind that delegation has a small runtime overhead, as it creates objects and delegates method calls.<br />
+<br />
+Another very clean solution would be to use scopes extension methods to achieve the same thing. Usage of <i>with</i>&nbsp;can bring extensions defined on a interface into scope. Using a singleton would prevent us from creating objects, but obviously, one would have to pass the extension provider explicitly as a parameter.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">ExtensionProvider&lt;T&gt;</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">T.customExtensionMethod()</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">object</span> <span style="color: #d0d0d0;">IntExtensionProvider</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">ExtensionProvider&lt;Int&gt;</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">Int.customExtensionMethod()</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Custom method prints: "</span> <span style="color: #d0d0d0;">+</span> <span style="color: #6ab825; font-weight: bold;">this</span><span style="color: #d0d0d0;">)</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">&lt;T&gt;</span> <span style="color: #d0d0d0;">someFrameWorkFunction(list</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">List&lt;T&gt;,</span> <span style="color: #d0d0d0;">extensionProvider:</span> <span style="color: #d0d0d0;">ExtensionProvider&lt;T&gt;)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">with(extensionProvider)</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">list.forEach</span> <span style="color: #d0d0d0;">{</span> <span style="color: #d0d0d0;">it.customExtensionMethod()</span> <span style="color: #d0d0d0;">}</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">main</span><span style="color: #d0d0d0;">(args:</span> <span style="color: #d0d0d0;">Array&lt;String&gt;)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">someFrameWorkFunction(listOf(</span><span style="color: #3677a9;">1</span><span style="color: #d0d0d0;">,</span><span style="color: #3677a9;">2</span><span style="color: #d0d0d0;">,</span><span style="color: #3677a9;">3</span><span style="color: #d0d0d0;">),</span> <span style="color: #d0d0d0;">IntExtensionProvider)</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+And now I hope that I didn't confuse the wording of all these things :)</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

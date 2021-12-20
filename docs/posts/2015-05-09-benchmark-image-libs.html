@@ -1,0 +1,120 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-05-09-benchmark-image-libs.html">Microbenchmarking Java image loading libraries</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-05-09</span>
+        <h1>Microbenchmarking Java image loading libraries</h1>
+        <p></p>
+    </header>
+            <p><p>During my 3d engine project, the demand to load arbitrary image formats came up. My choice was <b>ImageIO </b>since it's shipped with Java. Short time ago, I realized that there is a cool Apache lib called <b>commons imaging</b>. The main goal would be to speed up the loading processes, so finally I have a reason to do some microbenchmarks, yey.<br />
+    <br />
+    Since there are only very few tools for micro benchmarking and most of them offer poor features and documentation, I recommend to use <b>JMH</b>. As always, documentation and examples are kind of confusing, so here's the workflow I used.<br />
+    <br />
+    First of all, you need two dependencies - the jmh core lib and the annotation processor.<br />
+    <!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #007700;">&lt;dependency&gt;</span>
+    <span style="color: #007700;">&lt;groupId&gt;</span>org.openjdk.jmh<span style="color: #007700;">&lt;/groupId&gt;</span>
+    <span style="color: #007700;">&lt;artifactId&gt;</span>jmh-core<span style="color: #007700;">&lt;/artifactId&gt;</span>
+    <span style="color: #007700;">&lt;version&gt;</span>1.9.1<span style="color: #007700;">&lt;/version&gt;</span>
+<span style="color: #007700;">&lt;/dependency&gt;</span>
+<span style="color: #007700;">&lt;dependency&gt;</span>
+    <span style="color: #007700;">&lt;groupId&gt;</span>org.openjdk.jmh<span style="color: #007700;">&lt;/groupId&gt;</span>
+    <span style="color: #007700;">&lt;artifactId&gt;</span>jmh-generator-annprocess<span style="color: #007700;">&lt;/artifactId&gt;</span>
+    <span style="color: #007700;">&lt;version&gt;</span>1.9.1<span style="color: #007700;">&lt;/version&gt;</span>
+<span style="color: #007700;">&lt;/dependency&gt;</span>
+</pre>
+</div>
+<br />
+The methods you want to benchmark can then be annotated to be automatically registered for measurement.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #555555; font-weight: bold;">@Benchmark</span>
+    <span style="color: #008800; font-weight: bold;">public</span> <span style="color: #333399; font-weight: bold;">void</span> <span style="color: #0066bb; font-weight: bold;">commonsImage</span><span style="color: #333333;">(){</span>
+        MainClass<span style="color: #333333;">.</span><span style="color: #0000cc;">loadImageCommonsImaging</span><span style="color: #333333;">();</span>
+    <span style="color: #333333;">}</span>
+</pre>
+</div>
+<br />
+Now a piece of software is needed that runs all your annotated methods. This can be done with some command line stuff, I prefer a solution that can be packaged as a jar or directly run from the IDE. Embedding your benchmark config in a class and write a small main method can do the job. The class you pass into the benchmark via the options is scanned for annotated methods.<br />
+<br />
+<div style="background: #ffffff; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">public</span> <span style="color: #008800; font-weight: bold;">static</span> <span style="color: #333399; font-weight: bold;">void</span> <span style="color: #0066bb; font-weight: bold;">main</span><span style="color: #333333;">(</span>String<span style="color: #333333;">[]</span> args<span style="color: #333333;">)</span> <span style="color: #008800; font-weight: bold;">throws</span> RunnerException <span style="color: #333333;">{</span>
+        Options opt <span style="color: #333333;">=</span> <span style="color: #008800; font-weight: bold;">new</span> OptionsBuilder<span style="color: #333333;">()</span>
+                <span style="color: #333333;">.</span><span style="color: #0000cc;">include</span><span style="color: #333333;">(</span>ImageLoadBenchmark<span style="color: #333333;">.</span><span style="color: #0000cc;">class</span><span style="color: #333333;">.</span><span style="color: #0000cc;">getSimpleName</span><span style="color: #333333;">())</span>
+                <span style="color: #333333;">.</span><span style="color: #0000cc;">forks</span><span style="color: #333333;">(</span><span style="color: #0000dd; font-weight: bold;">1</span><span style="color: #333333;">)</span>
+                <span style="color: #333333;">.</span><span style="color: #0000cc;">build</span><span style="color: #333333;">();</span>
+
+        <span style="color: #008800; font-weight: bold;">new</span> <span style="color: #0066bb; font-weight: bold;">Runner</span><span style="color: #333333;">(</span>opt<span style="color: #333333;">).</span><span style="color: #0000cc;">run</span><span style="color: #333333;">();</span>
+    <span style="color: #333333;">}</span>
+</pre>
+</div>
+<br />
+Run the main method from your IDE or export a package. Note: If you export a jar, you have to provide the dependencies - if you don't want them to reside in your classpath, create a fat jar with the maven-assembly-plugin. Tested it, works fine. Here's the result:<br />
+<br />
+Benchmark &nbsp; &nbsp; &nbsp; &nbsp; Mode &nbsp;Cnt &nbsp; Score &nbsp; Error &nbsp;Units<br />
+commonsImage &nbsp;thrpt &nbsp; &nbsp;20 &nbsp; &nbsp;8,127 &nbsp; 0,077 &nbsp;ops/s<br />
+imageIOImage &nbsp; &nbsp;thrpt &nbsp; &nbsp;20 &nbsp; 11,283 &nbsp;0,105 &nbsp;ops/s<br />
+<br />
+So it seems as if imageIO can push more loading jobs per second than commons imaging. Dang it.<br />
+<br />
+This is just a minimal benchmark setup - of course there's a ton of other things you could do with JMH. Have fun.<br />
+<br /></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

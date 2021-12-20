@@ -1,0 +1,128 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2017-18-14-multithreaded-game-engines.html">Multithreaded game engines and rendering</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2017-11-24</span>
+        <h1>Multithreaded game engines and rendering</h1>
+        <p>With OpenGL</p>
+    </header>
+            <p><p>There is this one question since beginning of multicore processors: <i>How to multithread your game engine?</i> I can't answer this question in general, but I can answer the question <i>How to multithread the rendering part of my game engine?</i><br />
+ <br />
+<h3>
+ Problem</h3>
+The most simple case is a single-threaded game engine that does this:<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> while(true) {
+   simulateWorld();
+   renderWorld();
+ }
+</code></pre>
+<br />
+The update step produces a consistent state of the world. After each update, the rendering is done. After the rendering is done, the next cycle is processed. No synchonization needed, everything works. The bad thing: <i>simulateWorld</i> is a cpu-heavy task, <i>renderWorld</i> is a gpu-heavy task. So while the world is updated, the gpu idles, while the gpu renders, the cpu idles (more or less). And the worst thing: Your framerate is limited by both the cpu and the gpu. Your frametime is <i>timeOf(simulateWorld) + timeOf(renderWorld)</i>. Our target frametime is <i>timeOf(renderWorld)</i> and to keep this time as low as possible. More precisely the target is <i>timeOf(renderWorld).</i><br />
+<br />
+<h3>
+ Foundations</h3>
+Okay I lied: The above mentioned problem is only the overall-globally-problem we solve. There's a shitload of other problems, that mostly depend on the language platform, graphics api, hardware, your skillset and so on. Since our lifetime is limited, and I want to give practical, real-world-relevant help, I make some assumptions. One of these is, that you use OpenGL and a pretty new version of it. Let's say 4.3. Multithreaded rendering could probably be done better and faster with DX 12 or Vulkan, but let's stay cross-platform and simpler with OpenGL.<br />
+<br />
+I assume that you already have at least a little bit knowledge about how game engines work, timesteps, scene representations and so on. <br />
+<br />
+<h4>
+ Multiple gpu contexts</h4>
+In order to be able to issue commands to OpenGL, you have to use a thread that has an OpenGL context bound to it. Architecture-wise, there is the <b>CPU</b>, the <b>OpenGL</b> driver and the <b>GPU</b>. The driver holds a queue, where the commands from the SPU are buffered somehow (implementation dependend). Then again, there is a queue for the GPU - that again buffers commands that came from the driver (implementation dependend). First, all commands the CPU issue are asynchronous, which means there's no actual work done on the GPU yet, but the command is queued by the driver. The order is preserved, that's what you can count on. The implementation can decide how many commands are queued up, until the cpu thread will block on command issuing. And the implementation can decide how many commands are buffered on the GPU side of things.<br />
+<br />
+Now, having that said, let's think about multithreading. What we can control is the CPU side (unless you write your own driver, which I doubt you want to do). Multiple cpu threads would require multiple gpu contexts - one for each thread. While this is theoretically possible with OpenGL, it is a very dumb idea in 19 out of 20 cases. As with traditional multithreading, context switching comes with a very high overhead - so you have to ensure that context switching overhead doesn't eat up the performance you gained from using multiple threads. And here's what's wrong: It seems that all OpenGL drivers (where you issue your comamnds at) except the one for iOS, are implemented singlethreaded. That means you can issue commands from multiple cpu threads, but on the driver thread, those commands are processed sequentially, with a context switch in between. You can find a more detailled explanation <a href="https://blog.gvnott.com/some-usefull-facts-about-multipul-opengl-contexts/" target="_blank">here</a>, so that I don't have to lose many further words, but: Don't use multiple contexts for anything else than asynchronous resource streaming.<br />
+<br />
+I assume we only use one OpenGL context. That means, all OpenGL calls must happen on a single thread. The construct used for this is the command pattern. A few hints: You should issue as few commands to OpenGL as possible. You should issue as lightweight commands as possible. Obviously, using only one thread for command execution limits the amount of work that can be done by this (cpu) thread. Nonetheless, you want a single, inifintely running worker thread that owns your OpenGL context and takes commands out of a non-blocking command queue. For convenience, you can seperate commands that should return a result (hence block) or should just be fired and forgotten. It's not nessecary that all commands are properly implemented by yout context wrapper/worker thread class, even though it makes your application more predictable in terms of performance. I implemented a non-blocking, generic command queue in Java <a href="https://bitbucket.org/hannespernpeintner/hpengine/src/6b528e0b2bff5c1da6f233715f3bcef07a72b649/src/main/java/de/hanno/hpengine/util/commandqueue/CommandQueue.java?at=master&amp;fileviewer=file-view-default" target="_blank">here</a> that uses Runnables and Callables as Commands. The principle is also explained more detailed <a href="http://etodd.io/2016/01/12/poor-mans-threading-architecture/" target="_blank">here</a>.<br />
+<h4>
+ &nbsp;Extractor pattern</h4>
+Extractor pattern is a term one never finds on the internet when searching for information about rendering. The first time I heard this, was when a (professional graphics programming) collegue of mine explained the basics of renderer architectures to me many many years ago. Fancy name for a simple thing: If you share data between two consumers (not exactly threads in this case), you either have to synchronize the access somehow, or you extract a copy of the data to pass it to the renderer in this case. That implies, that you need a synchronized/immutable command-like data structure, that represents all the information you need to push a render command. That plays nicely with the chapter above, you know, command queue etc. In languages other than Java where you have true value types, the implementation could be easier - although having very large renderstate objects copied over and over might be a drawback here. The chapter below shows another way of handling this problem.<br />
+<br />
+<h4>
+ Multibuffering</h4>
+Let's assume that the GPU only consumes renderstate, but doesn't alter it. That means if the GPU calculates any fancy physic, or results that should be passed to the next render cycle, than it isn't seen as part of our traditional renderstate for now.<br />
+That means the only producer of renderable state is the CPU. Since we don't want to render a scene where the first half objects are in timestep n and the second half is still in n-1, we have to be able to access a state of our gamestate, that is concise somehow. This is easily achievable with a task-based architecture, that basically has only one update thread, that sequentially crunches down what you want to do in parallel. For example if you have 10 game objects, the updatethread pushes 10 update-commands into a pool of worker threads and after all of them returned a result, we have a concise world state we can use and used all threads our system can push. I don't think, there's an alternative approach to multithreading that can be used in a general purpouse game engine, but I may be wrong. Instead of creating a new renderstate object and pushing a command to the renderqueue, we use something that's known in multithreading environments for ages: multibuffering.<br />
+<br />
+This should be confused with double or triple buffering that is used to display images on your monitor, although the principle behind it is the same.<br />
+<br />
+I skip explaining why double buffering isn't enough to satisfy our needs. Just use triple buffering and be happy, if you can afford the additional memory consumption. This works the following way.<br />
+<br />
+You have three instances of your renderstate. You have a wrapper, that encapsulates these three instances. Instance A is the currently readable state. The renderer uses this state for rendering, so while rendering is in progress, this instance mustn't be touched by anyone else than the renderer. Instance B is the current staging copy of the renderstate. It is the next state, that the renderer will use for the next frame, after the current frame is finished. Copy C is the isntance the update is currently applied on.<br />
+Now while this sounds simple, the important thing is, how to swap those instances correctly. Our main purpouse is to keep the GPU busy and to be able to render maximum fps, although one could theoretically (and practically) limit the framerate somehow (vsync, fps cap etc.).<br />
+<br />
+I realized this with a ever-running thread that does push and wait for a render-scene-drawcall constantly. After the frame is finished, the read copy is swapped with the staging copy. It's important, that the renderer get's a fresh copy on every swap. If the update thread isn't fast enough to provide a new updated renderstate copy, the renderer would render a state that is older than the one just drawn. This will cause flickering objects. I realized this with an ongoing counter, and I prevent swapping to a state with a lower number then the current state has. Let's assume your engine and the machine is capable of pushing 60cps update and 60fps framerate.<br />
+Let's face the other swap: The update thread updates the write copy C constantly as fast as possible. When finished, the write state becomes the new staging state B, so we have to swap them. We can't do this if the renderer is currently swapping his read and the staging state. So we need a lock for swap(A,B) and a lock for swap(B,C). If rendering can be done with okayish framerates (which we assume), the updatethread can wait (block) until swap(A, B) is finished. If you are using only coherent memory access, than you're donw here. But you wouldn't search for state-of-the-art rendering, if you don't use incoherent access. So let's get to the final ingredient we need for our super fast renderer.<br />
+<h4>
+ Lowering draw calls and persistent mapped buffers synchronization</h4>
+At the very beginning, there is the need to reduce the amount of work the gpu has to do, in order to render your scene. There are paths thorugh the OpenGL API that are more expensive than others, and there are paths with very very small overhead, if you can afford the loss of flexibility that comes with using it. <a href="https://www.gamedev.net/resources/_/technical/opengl/opengl-api-overhead-r4614" target="_blank">This </a>can give you a rough overview about how costly API calls are. I suggest we skip a long explenation and you read <a href="http://www.openglsuperbible.com/2013/10/16/the-road-to-one-million-draws/" target="_blank">this</a>. Summed up: You want unsynchronized buffers for all your data and handle synchronization by yourself. This results in no driver or gpu work for the synchronization, which is crucial for maxing out your performance. Remember that Vulkan was designed to exactly kill the driver overhead of OpenGL. Furthermore, we reduce draw calls and state changes with bindless resources and one of the most important things: indirect and instanced rendering.<br />
+<br />
+Having all these things implemented, there's one last thing to add to our triple buffering: synchronization. Since the driver works asynchronous and the gpu, too, there's no guarantee that the gpu doesn't use the buffer of our current write copy, that the update threads currently writes to. To adress this, one has to insert a fence sync object into the pipeline and associate it with the state, whenever a state becomes the current write state. When the render thread uses this thread and pushing all render commands of the current frame are pushed, the fence signal is pushed. Whenever this signal is processed by the gpu, the update thread can write to the associated state without any problems. The update thread can prepare the renderstate update and wait until the prepared data can be applied. This effectively blocks the update thread, if the renderer is more than 2 frames behind the update thread.<br />
+Special care has to be taken if you have any timestep-dependent calculations in your rendeirng step: Since rendering is decoupled form the update-step, you have to calculate the timestep by yourself somehow in the renderthread, based on the last tick and the time passed since then.<br />
+<br />
+<h3>
+ That's it</h3>
+<ul>
+ <li>&nbsp;Using the fastest possible paths through the OpenGL API. You need shader
+  storage buffers and indirect (and inntanced) rendering, probably
+  combined with bindless textures</li>
+ <li>Model a renderstate class that can be your complete draw command</li>
+ <li>Run a thread permanently, that permanently pushes rendercommands</li>
+</ul>
+<br />
+<iframe allowfullscreen="" frameborder="0" height="315" src="https://www.youtube.com/embed/kK3s98RD8ZM" width="560"></iframe></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

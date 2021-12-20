@@ -1,0 +1,114 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-11-12-bindless-lwjgl.html">Bindless texture with LWJGL</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-11-12</span>
+        <h1>Bindless texture with LWJGL</h1>
+        <p></p>
+    </header>
+            <p><p>The classic bound texture paradigma is so 1990. But getting bindless textures to work is not that easy, especially when you're using something other than C or C++. For all the LWJGL or Java users out there, here are some notes that may help you removing the classic texture pipeline from your engine. I think you can read about the technique in the internet, so I'll keep it mostly short.<br />
+    <br />
+    First of all, you need a handle (some kind of pointer again, but don't think of it as a pointer, yucks) for a given texture.<br />
+<div>
+    <br /></div>
+<div>
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> long handle = ARBBindlessTexture.glGetTextureHandleARB(textureID);
+</code></pre>
+</div>
+<br />
+Afterwards, the handle has to be made resident. I think that's something you need for the combination with partially resident textures.<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> ARBBindlessTexture.glMakeTextureHandleResidentARB(handle);
+</code></pre>
+<br />
+This was the easy part. Now, you have to use the handle in our shaders somehow. The easiest way would be to use it as a uniform.<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> ARBBindlessTexture.glUniformHandleui64ARB(location, handle);
+</code></pre>
+<br />
+Inside your shader, you have to use the handle. But what datatype should one use? Maybe I missed something elementary, but &nbsp;there's only one proper way, namely use a datatype made available through an nvidia extension. Since bindless textures are available through an extension as well, here are both calls that you (probably) need:<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> #extension GL_NV_gpu_shader5 : enable
+ #extension GL_ARB_bindless_texture : enable
+</code></pre>
+<br />
+And now, you can use tha datatype&nbsp;<b style="font-style: italic;">uint64_t</b>. So your uniform would be a uint64_t.<br />
+<br />
+That would work. But most probable, you want to have your data in a uniform or storage buffer, probably together with some other data and datatypes. So here's what I did.<br />
+<br />
+Use a DoubleBuffer (Java native buffer, available via <i>BufferUtils.createDoubleBuffer(int size)</i>) for your data. Since doubles are twice the size of a float, which is 4 byte, we have 8 bytes per texture handle, which is 64 bits, which is the same as a uint64's size, so that's enough. Now one has to take the generated handle's bits and put them into the buffer (for example a ssbo) as they are. This can be done like so:<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, offset * primitiveByteSize, values);
+</code></pre>
+-
+<br />
+Where primitiveByteSize is 8 in this case. Since we use the underlying buffer as a DoubleBuffer, we have to provide a double value for the handle (or use it as a byte buffer, but nevertheless we need the correct bits or bytes). You can convert a Java long to and from a double like this:<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> Double.longBitsToDouble(longValue)
+</code></pre>
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> Double.doubleToLongBits(doubleValue)
+</code></pre>
+<br />
+Afterwars, the shader can take the value as a said uint64_t and cast it to a sampler. Sounds ugly, maybe it is.<br />
+<br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> color = texture(sampler2D(uint64_t(material.handleDiffuse)), UV);
+</code></pre>
+<br />
+That is the whole story, took me a while to figure it out.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

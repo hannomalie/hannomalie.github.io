@@ -1,0 +1,157 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2018-09-17-structs-jvm.html">Kind-of-structs in Kotlin/JVM</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2018-09-17</span>
+        <h1>Kind-of-structs in Kotlin/JVM</h1>
+        <p>Using delegated properties</p>
+    </header>
+            <p><p>Project Valhalla is on everyone's lips nowadays, but the problem is: It is for years now and there's no concrete schedule when we can expect value types to be part of the JVM.<br />
+<br />
+In games, there is a desperate need for value types or at least control about the object layout. Why? Because one has to share memory with the native side. For example OpenGL lets you use a persistent mapped buffer - combined with multibuffering and your own synchronization gives you a blazing fast multithreading approach for your engine. But OpenGL doesn't want to read your Java object's headers, that's why you can't use regular serialzation mechanisms and instead you have to put your objects into a ByteBuffer float by float or int by int.<br />
+<br />
+Using standard Java/JVM heap objects, one has to update all the objects and afterwards extract them to a ByteBuffer. This means two iterations. Better would be to have objects that use a ByteBuffer directly, in order to be able to skip the buffer extraction completely.<br />
+<br />
+Now there's Kotlin with its delegated properties. All the basic examples show how to use a hash map instance as a backing storage for arbitrary properties of an object (<a href="https://kotlinlang.org/docs/reference/delegated-properties.html" target="_blank">https://kotlinlang.org/docs/reference/delegated-properties.html</a>). This led me to the idea to use delegated properties to access a ByteBuffer object as a backing storage for objects and structures of objects - just like structs in C do it.<br />
+<br />
+<script data-selector="code" src="https://unpkg.com/kotlin-playground@1"></script>
+<code>
+    interface Struct {
+    byteOffset: Int
+    buffer: ByteBuffer
+    }
+
+    // some missing magic here for property registration and local offset calculation
+
+    class FloatProperty(val localOffset) {
+    inline operator fun getValue(thisRef: Struct, KProperty&lt;*,*&gt;): Float {
+    thisRef.buffer.getFloat(thisRef.byteOffset+localOffset)
+    }
+    }
+
+    class MyStruct: Struct {
+    // .. missing magic here
+    val myFloat by FloatProperty()
+    val mySecondFloat by FloatProperty()
+    }
+</code>
+
+This will result a flat Layout for a MyStruct instance. This can be used directly by native APIs. So what I'm interested in is, how well does this perform compared to Vanilla Java approach? How much overhead is there for all those methods and delegate instances?
+
+I tested several different implementations that differ in convenience for the user and overall performance. One surprise for me was, that none of my implementations (neither ByteBuffer nor Unsafe backed) is as fast as vanilla Java. There are some benchmarks on the internet that tell a different story, for example <a href="https://dzone.com/articles/compact-heap-structurestuples">this one</a>. I can't really tell you how it was achieved. Just that I wasn't able to achieve similar results.
+
+<br />
+<br />
+<br />
+<br />
+Benchmark&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+Mode&nbsp; Cnt&nbsp; &nbsp; &nbsp; Score&nbsp; &nbsp; &nbsp;Error&nbsp; Units<br />
+iterAndMutBufferDirect&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 90626,796 ± 303,407&nbsp; ops/s<br />
+iterAndMutKotlinDelegatedPropertySlidingWindowBuffer&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 23695,594 ±&nbsp; 82,291&nbsp; ops/s<br />
+iterAndMutKotlinDelegatedPropertyUnsafeSimpleSlidingWindowBuffer<br />
+thrpt&nbsp; &nbsp;12&nbsp; 27906,315 ±&nbsp; 52,382&nbsp; ops/s<br />
+iterAndMutKotlinDelegatedPropertyUnsafeSlidingWindowBuffer&nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 25736,322 ± 904,017&nbsp; ops/s<br />
+iterAndMutKotlinSimpleSlidingWindowBuffer&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 27416,212 ± 959,016&nbsp; ops/s<br />
+iterAndMutResizableStruct&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 10204,870 ± 189,237&nbsp; ops/s<br />
+iterAndMutSimpleSlidingWindowBuffer&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 27627,217 ± 122,119&nbsp; ops/s<br />
+iterAndMutStructArray&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 12714,642 ±&nbsp; 51,275&nbsp; ops/s<br />
+iterAndMutStructArrayIndexed&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 11110,882 ±&nbsp; 26,910&nbsp; ops/s<br />
+iterAndMutVanilla&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 27111,335 ± 661,822&nbsp; ops/s<br />
+iterStruct&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 13240,723 ±&nbsp; 40,612&nbsp; ops/s<br />
+iterVanilla&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+thrpt&nbsp; &nbsp;12&nbsp; 21452,188 ±&nbsp; 46,380&nbsp; ops/s<br />
+<br />
+<br />
+All benchmarks iterate over a collection of 5000 Vector3f instances. <b>iterAndMutVanilla</b> is just a regular ArrayList iteration with forEach, setting the three components of each vector. <b>iterAndMutStruct </b>is my current implementation of a tight StructArray of Vector3fs with a sliding window iteration.<br />
+<br />
+Vanilla Java iteration with mutation yields the baseline results with 27k operations. It's very intersting, that a non-abstracted simple version with a direct bytebuffer is three times as fast as the baseline, reaching 90k operations. Simple non-abstracted implementations with Kotlin's delegates brings us down to the baseline performance again. My struct abstraction in the current implementation with a struct array class implementation can only reach 50% of the baseline - quite a difference between the simple delegate approach and only a rough sixth of the simple direct bytebuffer approache's performance.<br />
+<br />
+I have to figure out why my abstractions degrade performance by such amounts - the generated bytecode looks pretty similar for all the versions. At the time of writing, Kotlin's inline classes are not stable enough for delegate usage, so delegates cause some class overhead here.<br />
+<br />
+But even though there are some performance differences in this very micro benchmark, it doesn't necessarily mean that other use cases show such dramatic differences as well. Additionally, the largest benefit my struct-alike implementation offers is, that now large and complex datastructures can be memcopied like this:<br />
+<br />
+<br />
+<code>
+    class MyStruct: Struct {
+    // .. missing magic here
+    val myFloat by FloatProperty()
+    val mySecondFloat by FloatProperty()
+    }
+
+    val source = MyStruct().apply {
+    myFloat = 5
+    }
+
+    val target = MyStruct()
+    source.copyTo(target) // Simple extension method that copies a bytebuffer
+    println(target.myFloat) // prints 5</code>
+<br />
+<br />
+This means no iteration over nested arrays, complex copy constructors and even more complex nested invocation of them. Super handy for renderstate constructs in game engines - your whole renderstate instance can be mapped to a OpenGL struct and mapped as a shader storage buffer :)</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

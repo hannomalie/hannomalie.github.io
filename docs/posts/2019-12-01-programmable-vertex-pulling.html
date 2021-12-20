@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2019-12-01-programmable-vertex-pulling.html">Programmable vertex pulling</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2019-12-01</span>
+        <h1>Programmable vertex pulling</h1>
+        <p>No more complex vertex array abstractions</p>
+    </header>
+            <p><p>So i finally managed to invest some time to implement <a href="https://github.com/nlguillemot/ProgrammablePulling" target="_blank">programmable vertex pulling</a> in my engine. I can really recommend to implement an abstraction over persistent mapped buffers that lets you implement structured buffers of generic structs and then use it on the cpu and the gpu side as a simple array of things.<br />
+<br />
+Nothing comes for free: I find it quite difficult to handle any other layout than <a href="https://www.khronos.org/opengl/wiki/Interface_Block_(GLSL)" target="_blank">std430</a> because that matches what your c, c++ code is doing, as long as you restrict yourself to always use 16 byte alignment members, I think. My struct framework doesn't do any alignment, so I just added dummy members where appropriate in order to match the layout requirements. Afterwards, struct definitions in glsl have to match your struct on the cpu side and the only things left for your vertices is<br />
+<br />
+<code><br />struct VertexPacked {<br />&nbsp;&nbsp;&nbsp; vec4 position;<br />&nbsp;&nbsp;&nbsp; vec4 texCoord;<br />&nbsp;&nbsp;&nbsp; vec4 normal;<br />};<br />layout(std430, binding=7) buffer _vertices {<br />&nbsp;&nbsp; &nbsp;VertexPacked vertices[];<br />};<br /><br />...<br /><br /><br />int vertexIndex = gl_VertexID;<br />VertexPacked vertex = vertices[vertexIndex]; </code>
+<br />
+<br />
+Combined with persistent mapping, you can get rid of any layout fuddling, synchronization, buffering, mapping...and it just works.<br />
+<br />
+Regarding performance: I am using an array of structs approach because it is the simplest to use. The performance in my test scenes (for example sponza) is completely identical to the traditional approach. No performance differences on a Intel UHD Graphics 620.<br />
+<br />
+Having free indexed access to vertices in your shaders can be beneficial in other situations as well. For example you can implement a kd-tree accelerated ray tracer with compute that uses indices into your regular vertex array.
+</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

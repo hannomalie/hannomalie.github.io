@@ -1,0 +1,139 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2017-11-24-costs-of-delegation.html">Costs of Kotlin&#39;s Delegation</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2017-11-24</span>
+        <h1>Costs of Kotlin&#39;s Delegation</h1>
+        <p>What is Kotlin&#39;s delegation compiled into and what are runtime implications?</p>
+    </header>
+            <p><p>If there is one thing I really really like about Kotlin, then it's the first class citizenship of delegation throughout the whole language. It provides a simple and concise way to have a replacement for inheritance. The nice thing here is, that abstract properties can be used in an interface, but the state remains in the implemting class, with very low amount of boilerplate, magic and chance of bullshit happening. Or an interface can be implemented by giving a delegating instance and that's it. Here's a short snippet to show what I am talking about (reduced example):<br />
+    <!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">class</span> <span style="color: #0066bb; font-weight: bold;">Delegation</span>(<span style="color: #008800; font-weight: bold;">val</span> myImpl: MyInterfaceImpl) : MyInterface by myImpl
+</pre>
+</div>
+<br />
+Since this can be done in Java as well with default methods in interfaces and IDE code generation, it really is the reduced amount of boilerplate that has to be done to achieve it. It's only a worthy thing, if it can be expressed in readable, efficient code.<br />
+<br />
+And the last one is a very important criteria: Efficient. I don't want to make my JVM code slower as it is already. We're talking about games - if another language is slower, than the code I can produce with Java is the better compromise for me. If I imagine using delegation over inheritance with Kotlin throughout my codebase, in every hierachy..will it slow down my engine remarkably? I ran benchmarks of implementations of a directly implemented field, an inherited field and a delegated field with Java and Kotlin. I expected a field to be faster than a property in general, and a delegated field to be slower alltogether. I used JMH and a blackhole, so there should be everything implemented just fine, but I get these unexpected results:<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> Benchmark                     Mode Cnt     Score     Error Units
+ getStringJavaDelegation      thrpt 200 220181331,464 ± 2144028,358 ops/s
+ getStringJavaImplementation  thrpt 200 171078263,764 ± 889605,110 ops/s
+ getStringJavaInheritance      thrpt 200 170878616,220 ± 818848,070 ops/s
+ getStringKotlinDelegation     thrpt 200 225753956,507 ± 1740352,057 ops/s
+ getStringKotlinImplementation thrpt 200 168879795,813 ± 2728455,723 ops/s
+ getStringKotlinInheritance     thrpt 200 170414757,249 ± 1515476,325 ops/s
+</code></pre>
+<br />
+Turns out the delegation to a delegate field is faster than the other two versions... Okay, I have the instantiation included in the benchmarked code, and even though I expected delegation to be slower right then, I removed it from the benchmark - so now a single getString() call is measured. Results:<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> Benchmark                     Mode Cnt     Score     Error Units
+ getStringJavaDelegation      thrpt 200 301713586,642 ± 8160921,344 ops/s
+ getStringJavaImplementation  thrpt 200 225820433,449 ± 3676854,362 ops/s
+ getStringJavaInheritance      thrpt 200 234833613,665 ± 561919,892 ops/s
+ getStringKotlinDelegation     thrpt 200 320742908,021 ± 1406189,583 ops/s
+ getStringKotlinImplementation thrpt 200 230377534,877 ± 3347435,643 ops/s
+ getStringKotlinInheritance     thrpt 200 230821924,187 ± 1159446,814 ops/s
+</code></pre>
+<br />
+No chance, same results. And additionally, Kotlin's delegation seem to be even faster then the bare hand implementation with Java. I decided to take a closer look at the bytecode.<br />
+<br />
+<pre style="background: #f0f0f0; border: 1px dashed #cccccc; color: black; font-family: &quot;arial&quot;; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> DelegationJava Bytecode
+  public getString()Ljava/lang/String;
+   L0
+   LINENUMBER 14 L0
+   ALOAD 0
+   GETFIELD de/hanno/playground/DelegationJava.impl : Lde/hanno/playground/MyInterfaceImplementation;
+   INVOKEVIRTUAL de/hanno/playground/MyInterfaceImplementation.getString ()Ljava/lang/String;
+   ARETURN
+   L1
+   LOCALVARIABLE this Lde/hanno/playground/DelegationJava; L0 L1 0
+   MAXSTACK = 1
+   MAXLOCALS = 1
+
+
+ DelegationKotlin Bytecode
+  public getString()Ljava/lang/String;
+   L0
+   ALOAD 0
+   GETFIELD de/hanno/playground/DelegationKotlin.myInterfaceImplementation : Lde/hanno/playground/MyInterfaceImplementation;
+   INVOKEVIRTUAL de/hanno/playground/MyInterfaceImplementation.getString ()Ljava/lang/String;
+   ARETURN
+   L1
+   LOCALVARIABLE this Lde/hanno/playground/DelegationKotlin; L0 L1 0
+   MAXSTACK = 1
+   MAXLOCALS = 1
+
+
+ImplementationJava ByteCode
+  public getString()Ljava/lang/String;
+   L0
+   LINENUMBER 14 L0
+   ALOAD 0
+   GETFIELD de/hanno/playground/ImplementationJava.myStringField : Ljava/lang/String;
+   ARETURN
+   L1
+   LOCALVARIABLE this Lde/hanno/playground/ImplementationJava; L0 L1 0
+   MAXSTACK = 1
+   MAXLOCALS = 1
+</code></pre>
+<br />
+Not much difference here, just a LINENUMBER instruction. So I have to admit I'm very satisfied with this result, even though I can't explain it. Of course I know that one Bytecode is not everything ... but I don't feel like investing more time here because I have more interesting things to implement :) If anybody has further ideas here, I would like to hear.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

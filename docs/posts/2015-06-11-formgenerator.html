@@ -1,0 +1,212 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2015-06-11-formgenerator.html">FormGenerator: Automatic html forms from java objects</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2015-06-11</span>
+        <h1>FormGenerator</h1>
+        <p>Automatic html forms from java objects</p>
+    </header>
+            <p><p><h3>
+    Purpose</h3>
+One of <b>Ruby on Rails'</b> features I quite liked but missed in other frameworks, is <b>code generation</b>. The scaffolding produces forms and controllers for a given object automatically and saves the files in appropriate folders. This is mainly convention driven.<br />
+<br />
+With Java, we have a nice type system, so why do I have to write forms over and over again? I used reflection to automatically generate an html form for a given object.<br />
+<br />
+<h3>
+    Algorithm</h3>
+Basically, the <b>FormGenerator </b>gets an arbitrary object attached. On this object, first all fields and inherited fields have to be obtained. Since it would be useless to just process public fields, I had to use a small piece of utility code I found&nbsp;<a href="http://stackoverflow.com/questions/16966629/what-is-the-difference-between-getfields-getdeclaredfields-in-java-reflection" target="_blank">here</a>.<br />
+<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">public</span> <span style="color: #d0d0d0;">Iterable&lt;Field&gt;</span> <span style="color: #447fcf;">getFieldsUpTo</span><span style="color: #d0d0d0;">(</span><span style="color: orange;">@Nonnull</span> <span style="color: #d0d0d0;">Class&lt;?&gt;</span> <span style="color: #d0d0d0;">startClass,</span>
+                                     <span style="color: orange;">@Nullable</span> <span style="color: #d0d0d0;">Class&lt;?&gt;</span> <span style="color: #d0d0d0;">exclusiveParent)</span> <span style="color: #d0d0d0;">{</span>
+
+  <span style="color: #d0d0d0;">List&lt;Field&gt;</span> <span style="color: #d0d0d0;">currentClassFields</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">Lists.</span><span style="color: #bbbbbb;">newArrayList</span><span style="color: #d0d0d0;">(startClass.</span><span style="color: #bbbbbb;">getDeclaredFields</span><span style="color: #d0d0d0;">());</span>
+  <span style="color: #d0d0d0;">Class&lt;?&gt;</span> <span style="color: #d0d0d0;">parentClass</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">startClass.</span><span style="color: #bbbbbb;">getSuperclass</span><span style="color: #d0d0d0;">();</span>
+
+  <span style="color: #6ab825; font-weight: bold;">if</span> <span style="color: #d0d0d0;">(parentClass</span> <span style="color: #d0d0d0;">!=</span> <span style="color: #6ab825; font-weight: bold;">null</span> <span style="color: #d0d0d0;">&amp;&amp;</span>
+     <span style="color: #d0d0d0;">(exclusiveParent</span> <span style="color: #d0d0d0;">==</span> <span style="color: #6ab825; font-weight: bold;">null</span> <span style="color: #d0d0d0;">||</span> <span style="color: #d0d0d0;">!(parentClass.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(exclusiveParent))))</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">List&lt;Field&gt;</span> <span style="color: #d0d0d0;">parentClassFields</span> <span style="color: #d0d0d0;">=</span>
+                <span style="color: #d0d0d0;">(List&lt;Field&gt;)</span> <span style="color: #d0d0d0;">getFieldsUpTo(parentClass,</span> <span style="color: #d0d0d0;">exclusiveParent);</span>
+    <span style="color: #d0d0d0;">currentClassFields.</span><span style="color: #bbbbbb;">addAll</span><span style="color: #d0d0d0;">(parentClassFields);</span>
+  <span style="color: #d0d0d0;">}</span>
+
+  <span style="color: #6ab825; font-weight: bold;">return</span> <span style="color: #d0d0d0;">currentClassFields;</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+<br />
+After the information about the object is obtained, the form fields are wrapped by a form begin/end pair. The private fields have to be made accassible - note the exception handling.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">try</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">setAccessible</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">true</span><span style="color: #d0d0d0;">);</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">catch</span> <span style="color: #d0d0d0;">(SecurityException</span> <span style="color: #d0d0d0;">e)</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">Logger.</span><span style="color: #bbbbbb;">getGlobal</span><span style="color: #d0d0d0;">().</span><span style="color: #bbbbbb;">info</span><span style="color: #d0d0d0;">(String.</span><span style="color: #bbbbbb;">format</span><span style="color: #d0d0d0;">(</span><span style="color: #ed9d13;">"Field %s can't be accessed, so no input for this field."</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()));</span>
+  <span style="color: #6ab825; font-weight: bold;">return</span> <span style="color: #d0d0d0;">result;</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+<br />
+Depending on the type of the field, inputs should be generated. The types are determined at runtime, so a switch is needed for the value extraction.<br />
+<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(String.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">(String)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(Boolean.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+<span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">(Boolean)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">boolean</span><span style="color: #d0d0d0;">.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">getBoolean</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(Integer.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">(Integer)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">int</span><span style="color: #d0d0d0;">.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">getInt</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(Float.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">(Float)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">float</span><span style="color: #d0d0d0;">.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">getFloat</span><span style="color: #d0d0d0;">(object));</span>
+<span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">else</span> <span style="color: #6ab825; font-weight: bold;">if</span><span style="color: #d0d0d0;">(type.</span><span style="color: #bbbbbb;">equals</span><span style="color: #d0d0d0;">(List.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">))</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #ed9d13;">"&lt;div class=\"well\"&gt;"</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">newLine;</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">String.</span><span style="color: #bbbbbb;">format</span><span style="color: #d0d0d0;">(</span><span style="color: #ed9d13;">"&lt;div id=\"%s\"&gt;%s"</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">newLine);</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">generate(formGenerator.</span><span style="color: #bbbbbb;">getFieldName</span><span style="color: #d0d0d0;">(field.</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">()),</span> <span style="color: #d0d0d0;">(List)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(object),</span> <span style="color: #d0d0d0;">(ParameterizedType)</span> <span style="color: #d0d0d0;">field.</span><span style="color: #bbbbbb;">getGenericType</span><span style="color: #d0d0d0;">());</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #ed9d13;">"&lt;/div&gt;"</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">newLine;</span>
+  <span style="color: #d0d0d0;">result</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #ed9d13;">"&lt;/div&gt;"</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">newLine;</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+After all primitive types and lists/collections/iterables or whatever are treated, this method can be called recursively to treat arbitrary classes for fields again. It's probably not the best idea to hardcode css classes into this methods, but for my purposes and right now, bootstrap is the only ui framework I satisfy.<br />
+<br />
+Attention has to be paid for <b>generics</b>. For lists, I implemented a treatment in the following way.<br />
+<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">static</span> <span style="color: #d0d0d0;">String</span> <span style="color: #447fcf;">generate</span><span style="color: #d0d0d0;">(String</span> <span style="color: #d0d0d0;">fieldName,</span> <span style="color: #d0d0d0;">List</span> <span style="color: #d0d0d0;">value,</span> <span style="color: #d0d0d0;">ParameterizedType</span> <span style="color: #d0d0d0;">type)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">StringBuilder</span> <span style="color: #d0d0d0;">builder</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">new</span> <span style="color: #d0d0d0;">StringBuilder();</span>
+
+    <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">counter</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">0</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">for</span> <span style="color: #d0d0d0;">(Object</span> <span style="color: #d0d0d0;">listItem</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">value)</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">Class&lt;?&gt;</span> <span style="color: #d0d0d0;">componentClass</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">(Class&lt;?&gt;)</span> <span style="color: #d0d0d0;">type.</span><span style="color: #bbbbbb;">getActualTypeArguments</span><span style="color: #d0d0d0;">()[</span><span style="color: #3677a9;">0</span><span style="color: #d0d0d0;">];</span>
+        <span style="color: #d0d0d0;">String</span> <span style="color: #d0d0d0;">listItemFieldName</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">fieldName</span> <span style="color: #d0d0d0;">+</span> <span style="color: #ed9d13;">"_"</span> <span style="color: #d0d0d0;">+</span> <span style="color: #d0d0d0;">counter;</span>
+        <span style="color: #6ab825; font-weight: bold;">try</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">Method</span> <span style="color: #d0d0d0;">InputGeneratorMethod</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">InputGenerator.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">.</span><span style="color: #bbbbbb;">getDeclaredMethod</span><span style="color: #d0d0d0;">(</span><span style="color: #ed9d13;">"generate"</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">String.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">componentClass);</span>
+            <span style="color: #d0d0d0;">String</span> <span style="color: #d0d0d0;">generatedFormElements</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">(String)</span> <span style="color: #d0d0d0;">InputGeneratorMethod.</span><span style="color: #bbbbbb;">invoke</span><span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">null</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">listItemFieldName,</span> <span style="color: #d0d0d0;">listItem);</span>
+            <span style="color: #d0d0d0;">builder.</span><span style="color: #bbbbbb;">append</span><span style="color: #d0d0d0;">(generatedFormElements);</span>
+        <span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">catch</span> <span style="color: #d0d0d0;">(NoSuchMethodException</span> <span style="color: #d0d0d0;">e)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">e.</span><span style="color: #bbbbbb;">printStackTrace</span><span style="color: #d0d0d0;">();</span>
+        <span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">catch</span> <span style="color: #d0d0d0;">(InvocationTargetException</span> <span style="color: #d0d0d0;">e)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">e.</span><span style="color: #bbbbbb;">printStackTrace</span><span style="color: #d0d0d0;">();</span>
+        <span style="color: #d0d0d0;">}</span> <span style="color: #6ab825; font-weight: bold;">catch</span> <span style="color: #d0d0d0;">(IllegalAccessException</span> <span style="color: #d0d0d0;">e)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">e.</span><span style="color: #bbbbbb;">printStackTrace</span><span style="color: #d0d0d0;">();</span>
+        <span style="color: #d0d0d0;">}</span>
+        <span style="color: #d0d0d0;">counter++;</span>
+    <span style="color: #d0d0d0;">}</span>
+
+    <span style="color: #6ab825; font-weight: bold;">return</span> <span style="color: #d0d0d0;">builder.</span><span style="color: #bbbbbb;">toString</span><span style="color: #d0d0d0;">();</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+The method invocation can be done via reflection again. With the given type, the correct overloaded method is chosen at runtime. However, this could lead to exceptions that one has to handle properly *cough*.<br />
+<br />
+<h3>
+    Results</h3>
+<div>
+    The following class definition is used in my tests.</div>
+<div>
+    <br /></div>
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">MyClass</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">String</span> <span style="color: #d0d0d0;">testString</span> <span style="color: #d0d0d0;">=</span> <span style="color: #ed9d13;">"testStringValue"</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">Boolean</span> <span style="color: #d0d0d0;">testBoolean</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">Boolean</span> <span style="color: #d0d0d0;">testBooleanObject</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">false</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">testInt</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">12</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">Integer</span> <span style="color: #d0d0d0;">testInteger</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">14</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #6ab825; font-weight: bold;">float</span> <span style="color: #d0d0d0;">testFloat</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">12.0f</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">Float</span> <span style="color: #d0d0d0;">testFloatObject</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">14.0f</span><span style="color: #d0d0d0;">;</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">List&lt;String&gt;</span> <span style="color: #d0d0d0;">testStringList</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">new</span> <span style="color: #d0d0d0;">ArrayList()</span> <span style="color: #d0d0d0;">{{</span>
+        <span style="color: #d0d0d0;">add(</span><span style="color: #ed9d13;">"a0"</span><span style="color: #d0d0d0;">);</span>
+        <span style="color: #d0d0d0;">add(</span><span style="color: #ed9d13;">"a1"</span><span style="color: #d0d0d0;">);</span>
+    <span style="color: #d0d0d0;">}};</span>
+    <span style="color: #6ab825; font-weight: bold;">private</span> <span style="color: #d0d0d0;">List&lt;Boolean&gt;</span> <span style="color: #d0d0d0;">testBooleanList</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">new</span> <span style="color: #d0d0d0;">ArrayList()</span> <span style="color: #d0d0d0;">{{</span>
+        <span style="color: #d0d0d0;">add(</span><span style="color: #6ab825; font-weight: bold;">true</span><span style="color: #d0d0d0;">);</span>
+        <span style="color: #d0d0d0;">add(</span><span style="color: #6ab825; font-weight: bold;">false</span><span style="color: #d0d0d0;">);</span>
+    <span style="color: #d0d0d0;">}};</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+And the generated form looks like this.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+    <a href="../images/generatedForm.PNG" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="335" src="../images/generatedForm.PNG" width="400" /></a></div>
+<div class="separator" style="clear: both; text-align: center;">
+    <br /></div>
+<div class="separator" style="clear: both; text-align: left;">
+    It's just an early version yet, there is plenty of stuff left to do. For example the recursive generation for arbirtary objects. Or an injector for style classes. Or field annotations for named fields and non-exported or disabled fields. After this, I'll try to write a reflective argument extractor for ninja, that is capable of parsing request data from generated forms and propagate it back.</div>
+<br /></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

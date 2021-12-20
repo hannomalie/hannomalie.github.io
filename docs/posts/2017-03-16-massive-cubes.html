@@ -1,0 +1,70 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Massively by HTML5 UP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2017-03-16-massive-cubes.html">Rendering 4 Mio. vertices with 340000 cubes in Java</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2017-03-16</span>
+        <h1>Rendering 4 Mio. vertices with 340000 cubes in Java</h1>
+        <p>Just to show that it is easily possible</p>
+    </header>
+        <div class="image main"><img src="../images/4m_vertices_340000cubes.PNG" alt="" /></div>
+        <p><p>Someone has to fight the battle against the "Java is so slow, all Java games have low fps" myth. Maybe Java is not the best language for game development because it lacks value types and easy and zero overhead native code integration .... but the results one could achieve with using a zero-driver-overhead path like modern graphics APIs recommend for so many years, can be on par with what you can achieve in C or C++ as in Unreal, CryEngine or Unity. The secret is: Bindless ressources, indirect and instanced rendering, persistent mapped buffers, direct state access and of course good old multithreading.<br />
+ <br />
+ So, the most important things first: Use indirect rendering (to minimize calls the cpu has to issue!) and a shared global vertex buffer (to reduce state changes). Use large uniform or shader storage buffers for your object's properties and material properties. For each object, push a command into the buffer. Massive object counts cause massive command counts and large command buffers, so one can now use instancing to further reduce command count. With a clever structure (a offset buffer for example), one can easily have unique properties per object instance (for example dedicated textures per instance!) sourced from a large uniform buffer, when it's okay to share a common geometry (vertices). Et voila, 2ms cpu time to fire a render command that draws 340.000 instanced cubes with 4 million triangles at 60 fps in Java. Each object can have it's own textures and properties etc.<br />
+ <br /></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
