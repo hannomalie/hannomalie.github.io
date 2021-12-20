@@ -4,6 +4,7 @@ import org.jbake.app.Oven
 plugins {
     kotlin("jvm") version "1.6.0"
     application
+    id("net.researchgate.release") version "2.8.1"
 }
 buildscript {
     dependencies {
@@ -13,7 +14,6 @@ buildscript {
 }
 
 group = "de.hanno"
-version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -28,7 +28,9 @@ val destinationFolder = project.buildDir.resolve("jbake")
 val docsSubFolder = rootProject.rootDir.resolve("docs")
 
 val bake by tasks.registering {
+    inputs.dir(sourceFolder.resolve("content/posts"))
     group = "build"
+
     doFirst {
         destinationFolder.mkdir()
         Oven(sourceFolder, destinationFolder, true).apply {
@@ -51,7 +53,7 @@ val serveRelease by tasks.registering(JavaExec::class) {
     args = listOf(docsSubFolder.absolutePath, "8081")
 }
 
-val release by tasks.registering {
+val compileToDocs by tasks.registering {
     group = "release"
     dependsOn(bake)
     doFirst {
@@ -59,4 +61,12 @@ val release by tasks.registering {
         docsSubFolder.mkdir()
         destinationFolder.copyRecursively(docsSubFolder)
     }
+}
+
+release {
+    failOnCommitNeeded = false
+}
+
+tasks.beforeReleaseBuild {
+    dependsOn(compileToDocs)
 }
