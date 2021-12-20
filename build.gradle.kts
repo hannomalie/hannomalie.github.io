@@ -65,6 +65,7 @@ val compileToDocs by tasks.registering {
 
 release {
     failOnCommitNeeded = false
+    failOnUnversionedFiles = false
 }
 
 tasks.beforeReleaseBuild {
