@@ -1,0 +1,25 @@
+title=Java 8 default methods for your game engine transformations
+date=2015-02-13
+type=post
+tags=java8,game engine,transformation
+status=published
+headline=Nice game engine transformations
+subheadline=With Java 8 default methods
+summary=Java 8 default methods can be misused in interesting ways.
+~~~~~~
+<p>Although transformation and class hierarchies in game engines are a topic for itself for sure, I finally arrived at a point where I just want every single of my regular game objects to be a transformable entity. Those objects that don't act as something that can be transformed are outside of my interest, they need some default behaviour I don't care about. I think that is the way the Unity engine took, too. A shared super class might look like a good idea, but we are often warned about such kind of class hierarchies.<br />
+    <br />
+    While C++ offers multiple inheritance to implement things like this very easily, in languages like Java, you probably have to use composition - which should be favored over inheritance nevertheless. The problem is that sometimes, you get lost in interfaces and class fields... and see yourself write interface implementations again and again while delegating interface calls to field objects.<br />
+    <br />
+    The last sentence is the catch-word: I tried to learn about <b>Java 8</b>'s new stuff and stumbled across <b>default methods</b>. While mainly created to guarantee binary compatibility when changing interfaces, they offer a nice way to implement transformations within one file, without the need of (nearly) no other implementations or stuff. Here's how I did it:<br />
+    <br />
+    I have a <b>class </b>called <b>Transform</b>. This holds a position, an orientation, a scale and is mostly a data holder. Additionally, I created an <b>interface </b>called <b>Transformable</b>. If this would be a class, I should have implemented the state (which now is in Transform class) in this class. But it's an <b>interface</b>. My gameobjects implement this interface, so I would have to implement all those move(vec3 amount)-etc-methods in this implementation. With default methods, I can now provide implementations on the interface tiself - combined with a pattern I don't know the name for anymore, this could be powerful: methods implemented by the interface can be called by the interface. This means I can use a non-default-implemented method getTransform() on the interface in my default methods.<br />
+    <br />
+    For all classes that implement Transformable, it's sufficient to provide a transformation, because it needs getTransformation() to be implemented. That's because interfaces are not allowed to have state and one has to add the field to the implementing class.<br />
+    <br />
+    Where this really shines is in situations where you would use (method)-pointers in C++: When you have an object besides your regular game objects that has to be a transformable, but is attached to another object that controls their transformation, you can implement the getTransform()-method with returning a field object's transform. Best example is for gameobjects that have a physics componentn attached, that should win every transformation war.<br />
+    <br />
+    Additionally, I made the gameobject interface a subclass of my transformable interface, so that I can have different entity types for game objects, lights, environment probes etc. Some of them are not movable, like a directional light - therefore, I can override the directional light's move-methods to not do anything. And then, the subclass interface can call it's superclass interface's methods, too: For example the default implementation of the game object interface's isDirty()-method uses the superclass interface's hasMoved()- and its own animationHasPlayed()-method, if it's an animated entity.<br />
+    <br />
+    So for the maximum price of a method call, that the interface has to do on itself when a transformation changes, you can have your transformations interfaced. My experience is, that I have very few problems with undesired class hierarchies in the means of&nbsp;<i>"oh no, now I have to implement x or subclass y, but it's not clean code"</i>. As always, I'm still a bit uncertain about if this is good use of default methods. But at least I gave them a try and I don't regret my design descision - let me know why this stuff is bullshit, I'm curious :)
+</p>

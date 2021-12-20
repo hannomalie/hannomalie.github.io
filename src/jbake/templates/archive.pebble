@@ -14,10 +14,14 @@
     </li>
         <article style="padding-bottom:50px;">
             <header>
-                <span class="date">April 24, 2017</span>
+                <span class="date">{{ post.date | date("yyyy-MM-dd") }}</span>
                 <h4><a href="{{ content.rootpath }}{{ post.uri }}">{{ post.headline }}</a></h4>
             </header>
-            <a href="{{ content.rootpath }}{{ post.uri }}">{{ post.subheadline }} ...</a>
+
+            {% if post.subheadline is null %}
+            {% else %}
+                <a href="{{ content.rootpath }}{{ post.uri }}">{{ post.subheadline }}</a>
+            {% endif %}
         </article>
     </li>
 {% else %}

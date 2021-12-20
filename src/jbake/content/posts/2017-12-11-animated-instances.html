@@ -1,0 +1,24 @@
+title=Rendering thousands of unique animated instances
+date=2017-12-11
+type=post
+tags=gpu skinning,rendering,instanced rendering,animation
+status=published
+headline=Rendering thousands of unique animated instances
+subheadline=Rendering a single mesh thousands of times is easy, how about rendering thousands of different models?
+summary=Generic structured buffer access using draw and instance ids enables for different properties per instance. That means thousands of unique instances of a mesh can be rendered in real time.
+~~~~~~
+<p>Some weeks ago, I implemented GPU skinning in my engine. As mentioned in my posting about multithreading and high performance stuff, you could face a problem with animated objects: Depending on the max amount of weights per vertex you want to support (usually 4 or 8), you have a different vertex layout to support now. Additionally, your entity contains a bone hierarchy that can be arbitrarily shaped. I implemented a second <i>entity data</i> buffer additionally to the main entity buffer that contains model matrix, material index etc. This has the advantage, that we now have a buffer that only contains equally sized nodes of all scene object's bone hierarchies....means that we can freely do index access into this global array from all shaders.<br />
+    <br />
+    So in the vertex shader for animated objects, the corresponding bone (matrix) can be fetched from the structured buffer by index. The retrieved data structure contains its parent node index if present or -1 if the bone is the top of the hierarchy. Here we have a hierarchical data strucutre traversable by the GPU.<br />
+    <br />
+    Per entity, it is now necessary to define a maximum count of animations that can run at the same time. Since vec4s are nicely aligned by the GPU, I chose 4. So each entity data now contains an additional vec4 that contains 4 float values, indicating the weight of the 4 active animations. I wanted to avoid an additional indirection here, so I didn't define the animation data in their own buffer. On the CPU side of things, an animation controller can play an animation and only has to update a single value in the entity data buffer (which is lockfree and unsynchronized, so extremely fast, read my post about multithreaded engines).<br />
+    <br />
+    The vertex shader already has the actual entity data structure and can do the animation blending now on the GPU directly.<br />
+    <br />
+    Recapture: The CPU updates the animation controller. The result is a float value per animation... the current weight of the animation. Since bones are precalculated on model import, everything is ready for the GPU now. The GPU only has to do some buffer fetches and some matrix multiplications. Combined with instanced rendering, where the animation controller is part of the per-instance data, one can have thousands of independent animations, for example to simulate people crowds. Or many Hellknights:<br />
+    <br />
+    <br />
+    <iframe allow="encrypted-media" allowfullscreen="" frameborder="0" gesture="media" height="315" src="https://www.youtube.com/embed/AgxddJtSVx0" width="560"></iframe>
+
+    <br />
+    Keep in mind that there's no culling right now - neither instance cluster wise, nor instance based. </p>

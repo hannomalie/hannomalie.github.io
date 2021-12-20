@@ -1,0 +1,133 @@
+title=Constructor type constraints with companions
+date=2018-01-11
+type=post
+tags=interfaces,extension functions,type constraints,Kotlin
+status=published
+headline=Try to mimic constructor type constraints
+subheadline=With Kotlin's companion objects
+summary=Companion objects are interesting as they allow for reusing logic that needs to be available at the class level. Can we express type constraints with them as well?
+image=images/Kotlin_Icon.png
+~~~~~~
+<p>Some problems just stick in my mind forever. I searched for a nice way to enforce the presence of a static method via an interface. C# has type constrtaints for this need, but I find the syntax rather ugly. For example, one could require that a static factory method is present on the class of a given instance. A problem regularly solved with factories or factory methods, or even factory methods as parameters.<br />
+In Kotlin, interfaces can have companions. However, they are not part of the contract of the interface, that means it's not abstract and you don't have to override it/can't override it. Methods defined on the companion can't be overriden either, so the following code doesn't do what one expects it does:<br />
+<br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">SomeInterface</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">companion</span> <span style="color: #d0d0d0;">object</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">xxx</span><span style="color: #d0d0d0;">()</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Base method by SomeInterface"</span><span style="color: #d0d0d0;">)</span>
+        <span style="color: #d0d0d0;">}</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">MyImpl</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">SomeInterface</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">SomeInterface.Companion.xxx()</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Overriden static method by MyImpl"</span><span style="color: #d0d0d0;">)</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">test</span><span style="color: #d0d0d0;">(impl:</span> <span style="color: #d0d0d0;">SomeClass.SomeInterface)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">with(impl)</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">SomeClass.SomeInterface.xxx() // surprise here!</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+This prints<br />
+<i>...</i><br />
+<i>Base method by SomeInterface</i><br />
+<i>...</i><br />
+The corresponding bytecode piece in the test function is<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">GETSTATIC</span> <span style="color: #d0d0d0;">SomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface.Companion</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">LSomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">Companion;</span>
+<span style="color: #d0d0d0;">INVOKEVIRTUAL</span> <span style="color: #d0d0d0;">SomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">Companion.xxx</span> <span style="color: #d0d0d0;">()V</span>
+</pre>
+</div>
+<br />
+Since the goal is to enforce the presence of a static method, it's likely that there is no <i>base </i>implementation at all, so no default implementation in the interface. In this case, we can only define a companion object in the interface without any methods. It's then possible to define interface methods for the companion object, just like <i>fun SomeInterface.Companion.myMethod()</i>. This is similar to include extension functions in an interface's contract, as described in my last blog post. Implementing interfaces would then need to implement this method. Here's a complete example on how to do this.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">SomeClass</span> <span style="color: #d0d0d0;">{</span>
+
+    <span style="color: #6ab825; font-weight: bold;">interface</span> <span style="color: #d0d0d0;">SomeInterface</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">companion</span> <span style="color: #d0d0d0;">object</span>
+        <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">SomeInterface.Companion.xxx()</span>
+    <span style="color: #d0d0d0;">}</span>
+
+    <span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">MyImpl</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">SomeInterface</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">SomeInterface.Companion.xxx()</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Overriden static method by MyImpl"</span><span style="color: #d0d0d0;">)</span>
+        <span style="color: #d0d0d0;">}</span>
+    <span style="color: #d0d0d0;">}</span>
+
+    <span style="color: #6ab825; font-weight: bold;">class</span> <span style="color: #447fcf; text-decoration: underline;">MyOtherImpl</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">SomeInterface</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #6ab825; font-weight: bold;">override</span> <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">SomeInterface.Companion.xxx()</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Overriden static method by MyOtherImpl"</span><span style="color: #d0d0d0;">)</span>
+        <span style="color: #d0d0d0;">}</span>
+    <span style="color: #d0d0d0;">}</span>
+
+    <span style="color: #d0d0d0;">companion</span> <span style="color: #d0d0d0;">object</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">test</span><span style="color: #d0d0d0;">(impl:</span> <span style="color: #d0d0d0;">SomeClass.SomeInterface)</span> <span style="color: #d0d0d0;">{</span>
+            <span style="color: #d0d0d0;">with(impl)</span> <span style="color: #d0d0d0;">{</span>
+                <span style="color: #d0d0d0;">SomeClass.SomeInterface.xxx()</span>
+            <span style="color: #d0d0d0;">}</span>
+        <span style="color: #d0d0d0;">}</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #447fcf;">main</span><span style="color: #d0d0d0;">(args:</span> <span style="color: #d0d0d0;">Array&lt;String&gt;)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">test(SomeClass.MyImpl())</span>
+    <span style="color: #d0d0d0;">test(SomeClass.MyOtherImpl())</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+It will print<br />
+<i>...</i><br />
+<i>Overriden static method by MyImpl</i><br />
+<i>Overriden static method by MyOtherImpl</i><br />
+<i>...</i><br />
+<br />
+The corresponding bytecode of the test function now looks like this:<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">GETSTATIC</span> <span style="color: #d0d0d0;">SomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface.Companion</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">LSomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">Companion;</span>
+<span style="color: #d0d0d0;">INVOKEINTERFACE</span> <span style="color: #d0d0d0;">SomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface.xxx</span> <span style="color: #d0d0d0;">(LSomeClass</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">SomeInterface</span><span style="background-color: #e3d2d2; color: #a61717;">$</span><span style="color: #d0d0d0;">Companion;)V</span>
+</pre>
+</div>
+<br />
+So the old invokevirtual became an invokeinterface. This most likely comes with a small performance overhead. But hey, can't have everything.<br />
+<br />
+This construct allows for factory-like constructor functions. Sadly, operator functions are not allowed to be declared on interfaces. That means, the constructor method has to be named <i>create</i>&nbsp;or something, leading effectively to an interface function signature of<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">fun</span> <span style="color: #d0d0d0;">SomeInterface.Companion.create()</span> <span style="color: #d0d0d0;">:</span> <span style="color: #d0d0d0;">T</span>
+</pre>
+</div>
+<br />
+and a usage like<br />
+<br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">with(impl)</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Created ${SomeInterface.create().javaClass}"</span><span style="color: #d0d0d0;">)</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+This eliminates the sense in all this for me, because I would then rather type<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Created ${impl.create().javaClass}"</span><span style="color: #d0d0d0;">)</span>
+</pre>
+</div>
+<br />
+The only worth-it syntax that would satisfy me would be this - based on an invoke operator function defined in the interface, usable through the interfaces companion object.<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">println(</span><span style="color: #ed9d13;">"Created ${SomeInterface().javaClass}"</span><span style="color: #d0d0d0;">) //Not valid</span>
+</pre>
+</div>
+<br />
+Okay, at least I tried :)</p>

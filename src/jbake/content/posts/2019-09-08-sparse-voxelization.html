@@ -1,0 +1,22 @@
+title=Sparse voxelization on the CPU
+date=2019-09-08
+type=post
+tags=voxeliztation,voxel tracing,
+status=published
+headline=Sparse voxelization
+subheadline=On the good old CPU
+summary=Sparse voxelization was much easier to implement for me on the CPU instead of the GPU.
+~~~~~~
+<p>The various adventures with Voxel Cone Tracing showed me, that asynchronous and partly done voxelization on the gpu can become really really tricky, because the data structures involved are very hard to implement.<br />
+<br />
+So after ditching clipmaps because they won't allow for enough caching of static sthings, I gave sparse voxelization another try. Like - I think - CryEngine, I wanted to implement voxelization on the cpu, in order to be able to perform it async and partly on demand. The voxelization itself didn't took too much time - I decided to go for the "brick" approach, which allocates either none or all eight children of a given node, whether some of them are empty or not. The advantage here would be that working with offsets is much easier, as first childs always are located at the brick pointer start and the next 7 children are contiguous in memory and one can just increment the pointer to get the next child. Using a pointer based apporach enables required asynchronicity and streaming, because the memory layout doesn't have to fulfill everything we need on the GPU later on for tracing. Super nice Kotlin coroutines enable usage of 100% of the cpu very easily with a fork join approach and just launching thousands of coroutines. Depth of the tree is 11, size is 1000³. I think in order to have this resolution, one would need a 3d texture with resolution of 512³ or 1024³ which usually is too costly for voxel cone tracing approaches.<br />
+<br />
+<br />
+<iframe allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="" frameborder="0" height="315" src="https://www.youtube.com/embed/DQF-3Jg7zkg" width="560"></iframe>
+
+<br />
+I didn't squeeze out the last bit of performance here. So yes, maybe this can be implemented much faster. And no excuses, but the video itself eats up a lot of the fps I had - it had about 30 fps, pretty much limited by my laptop cpu.<br />
+<br />
+And this video could be the last thing I can show about voxelization, because the tracing part didn't just work out as expected. In order to work with empty leave nodes, one has to get creative. Because if you intersect a ray with a box, but the hit would actually be with a box that is an empty leaf, you would have to backtrack the tree (hence you need parent node pointers in all nodes, but that's okay) until you get somewhere where some sibling nodes are left to be traced...<br />
+<br />
+My implementation is too bad to be anywhere near realtime and debugging or reason about what's going on is very very tedious... after having my computer completely frozen half a dozen times because I made another stupid mistake on the GPU, I decided that this approach is just not doable in the amount of time I can afford :)</p>

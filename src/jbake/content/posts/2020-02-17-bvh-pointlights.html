@@ -1,0 +1,37 @@
+title=BVH accelerated point light shading
+date=2020-02-17
+type=post
+tags=compute shader,bvh,bounding sphere,opengl
+status=published
+headline=BVH accelerated point light shading
+subheadline=In deferred rendering
+summary=How to render a lot of pointlights in a deferred renderer without screen space clustering?
+image=images/500pointlights.png
+~~~~~~
+<p>My engine uses a lot of modern techniques like programmable vertex pulling, persistent mapped buffer based multi threaded rendering with a ring buffer and at the core of these techniques, there is this concept of a simple structured buffer. Experiments with compute based ray tracing on kd- and octrees led me to stackless tree traversal on the gpu, which is very very interesting and can be easily found on the internet. And occasionally, I found <a href="https://worldoffries.wordpress.com/2015/02/19/simple-alternative-to-clustered-shading-for-thousands-of-lights/#Ref1" target="_blank">this article</a> about an alternative to all those clustered, forward plus deferred tile based or whatever approaches for a massive amount of lights. I highly recommend reading it and all the other nice posts over there. He got my interest. I heard about light bvhs only for offline renderers. And structured buffers? I have them. Compute shaders, I have them. My point lights? Yea, maybe I have many of them, but they mostly don't move. And than again, I need rendering and light evaluation not only for my deferred rendering pass, but also for my transparency pass, a regular grid of environment probes or my voxel cone tracing grid...<br />
+<br />
+Long story short, implementing a basic version was very easy, because the concept is so simple.<br />
+<span id="goog_572497291"></span><span id="goog_572497292"></span><br />
+<br />
+<div style="text-align: center;">
+    <a href="http://3.bp.blogspot.com/-dFPhklLsts0/XksOpdYQjiI/AAAAAAAAFyI/aFmBsDYK8FMji47NeQnHTBjCkseT-AonwCK4BGAYYCw/s1600/100lights.png" imageanchor="1"><img border="0" height="210" src="https://3.bp.blogspot.com/-dFPhklLsts0/XksOpdYQjiI/AAAAAAAAFyI/aFmBsDYK8FMji47NeQnHTBjCkseT-AonwCK4BGAYYCw/s400/100lights.png" width="400" /></a></div>
+<br />
+<br />
+<br />
+Assuming a static tree, my implementation
+needs <b>~10ms</b> for 100 point lights instead of <b>~34ms</b> in the most trivial compute shader in the  quite dense configuration above on my crappy notebook with integrated intel card. In a less dense configuration, the time goes down to <b>~4ms </b>and less. It really depends on the amount of overlapping volumes and how efficient the tree is. 500 pointlights scattered over the Sponza atrium takes below <b>30ms</b>.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+    <a href="http://2.bp.blogspot.com/-wk6k5ZUeTXk/Xkxi2-GINFI/AAAAAAAAFyU/d8YmtCfzj6wgjCg0q5Ll_L3ADAPwlwDcQCK4BGAYYCw/s1600/500pointlights.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="222" src="https://2.bp.blogspot.com/-wk6k5ZUeTXk/Xkxi2-GINFI/AAAAAAAAFyU/d8YmtCfzj6wgjCg0q5Ll_L3ADAPwlwDcQCK4BGAYYCw/s400/500pointlights.png" width="400" /></a></div>
+<br />
+<br />
+<b>BVH update</b>: The most tricky and also the most costly part of the whole thing is
+probably the creation and update of the BVH which I haven't
+implemented efficiently yet. My creation happens on any light movement and clusters lights or inner nodes recursively into buckets of 4. 4 gave me better performance than 8 as in the blog post, probably because my light struct layout is not very efficient.<br />
+<br />
+<b>Sphere union</b>: The implementation to find an enclosing sphere for n spheres is from <a href="https://github.com/hbf/miniball" target="_blank">here</a>. I'm not too sure that a really optimal sphere is found, but since I'm feeding every sphere's aabb corner points into the library, some efficiency is already wasted on my side or the program.<br />
+<br />
+<br />
+<br />
+<br />
+<br /></p>

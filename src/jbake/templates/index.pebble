@@ -19,7 +19,7 @@
     </ul>
 </article>
 <section class="posts">
-{% set xOlderPosts = published_posts | slice(1, min(published_posts.size, 5)) %}
+{% set xOlderPosts = published_posts | slice(1, min(published_posts.size, 7)) %}
 {% for post in xOlderPosts %}
     <article>
         <header>

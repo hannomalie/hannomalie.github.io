@@ -1,0 +1,18 @@
+title=Why I dumped bindless textures
+date=2016-07-31
+type=post
+tags=deferred rendering
+status=published
+headline=Why I dumped bindless textures
+subheadline=And in ~2020 added them again
+summary=Bindless textures are such a good idea, but the implementation in APIs like OpenGL is not easy to handle.
+~~~~~~
+<p>Nowadays, graphic interfaces tend to provide bindless access to resources - no more texture binding points was the promise OpenGL made. Curious about how I could enhance my code with the ARB_bindless_texture extension, I started changing my engine so that no more texture.bind(int index) was necessary any more.<br />
+ <br />
+ After I successfully implemented this feature, I was very glad, because instanced rendering can be done with different textures per object in one draw call, since the texture ids are accassible via a global buffer object.<br />
+ <br />
+ However, one thing is very, very, very uncomfortable with bindless textures (nowadays), and that's an even more important feature for a game engine: texture streaming. I implemented texture streaming with regular textures: For each texture, a timer is set, to identify when the texture was used last (this means when it was bound). When &nbsp;a certain threshold is reached (could depend on the amount of VRAM available, the distance to an objects etc.), all but the smallest mipmap levels of the texture are freed. No change needed on the shader side of things. But this requires the texture to be <b>mutable</b>. Keep in mind that this has nothing to do with the question if the texture's contents are mutable or not. And thats the whole problem: bindless textures are immutable. No way around it. The consequence is, that you can't modify your minimum miplevels after creation.<br />
+ <br />
+ So how to implement texture streaming in this scenario? I tried to create two texture objects per texture - one has the full mipmap stack, one has only the smallest. My global buffer gets the ids of both. If a texture wasn't used long time, the complete one is discarded - but how would my shader now know if it should sample the small-mipmap-texture or the regular texture? There is a second part of the sparse_texture_ext which exposes an API that lets your shader figure out if the texture is resident, that sadly wasn't available on my GTX 770.... And then, I have to recreate the regular texture if it is needed again, but the id changed, so I have to change all referenced ids in my global buffer. In the end, nothing is won, if you want to use bindless textures for your materials, because you would have to keep track of deleted/created textures - that causes overhead for buffer updates, increases the complexity of your code and the apis you need are most probably not available on your GPU. That's why I dropped them.<br />
+ <br />
+ If anyone out there has a hint on how to properly implement texture streaming with bindless textures and how to get along with the missing second part of the extension, I would be interested.</p>

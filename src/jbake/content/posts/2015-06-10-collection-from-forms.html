@@ -1,0 +1,38 @@
+title=Ninja framework: collection extraction from forms
+date=2015-06-10
+type=post
+tags=dependency injection,java,ninja,web development
+status=published
+headline=Collection extraction from forms
+subheadline=For the Ninja framework
+summary=Argument extractors are a bit underrepresented in the Ninja framework documentation, let's take a look at a more complex example.
+~~~~~~
+<p><b><a href="http://www.ninjaframework.org/" target="_blank">Ninja</a>&nbsp;</b>quickly became one of my favorite web frameworks. For REST, MVC, dependency injection, database and other basic stuff, it mostly is very convenient. But what about the more complicated things web development often demands? Because documentation is rather sparse for it, here's how you can use built in functionality to extract a <b>collection of objects from a form</b>.<br />
+    <br />
+    My example has a simple edit form for a trip model.A trip can have multiple stops, for simplicity represented by a String. With a POST route in the TripsController, Ninja can automatically parse the request, extract your form data and inject the Trip instance into the method call - one has to add a Trip reference the controller's signature and it just works, how great is that:<br />
+    <br />
+    <!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">public</span> Result <span style="color: #0066bb; font-weight: bold;">saveTrip</span><span style="color: #333333;">(</span>Context context<span style="color: #333333;">,</span> Trip trip<span style="color: #333333;">)</span> <span style="color: #333333;">{</span>
+</pre>
+</div>
+<br />
+However, the documentation states, that the extraction only works with primitives and arrays of them. This means no other collections, like Lists, can be extracted automatically. But no one uses plain arrays as fields... So, an easy way to circumvent this limitation, is to add the given items within the collection to the form and provide the same name attribute for all of them:<br />
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%"><span style="color: #FF0000; background-color: #FFAAAA">&lt;</span>#list trip.stops as stop&gt;
+  <span style="color: #007700">&lt;tr&gt;</span>
+    <span style="color: #007700">&lt;td&gt;&lt;input</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;text&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;form-control&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;stops[${stop_index}]&quot;</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;stops&quot;</span> <span style="color: #0000CC">value=</span><span style="background-color: #fff0f0">&quot;${stop}&quot;</span> <span style="color: #007700">&gt;&lt;/td&gt;</span>
+  <span style="color: #007700">&lt;/tr&gt;</span>
+<span style="color: #FF0000; background-color: #FFAAAA">&lt;</span>/#list&gt;
+</pre></div>
+<br />
+Then, add the String[] stops parameter to your signature and you're done.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #ffffff; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #008800; font-weight: bold;">public</span> Result <span style="color: #0066bb; font-weight: bold;">saveTrip</span><span style="color: #333333;">(</span>Context context<span style="color: #333333;">,</span> <span style="color: #555555; font-weight: bold;">@Params</span><span style="color: #333333;">(</span><span style="background-color: #fff0f0;">"stops"</span><span style="color: #333333;">)</span> String<span style="color: #333333;">[]</span> stops<span style="color: #333333;">,</span> Trip trip<span style="color: #333333;">)</span> <span style="color: #333333;">{</span>
+</pre>
+</div>
+<br />
+In my case, I updated all of the trip instance's stops with the stops automatically injected and saved the objet. Can't get any easier, I think.<br />
+<br />
+I'm not yet sure if this would work for more complex (means no-primitive type) objects. For this purpose, <b>argument extractors </b>were introduced. The documentation is again a bit sparse about them - a first try seemed that argument extractors that try to parse the request data for object extraction tend to be a bit hacky. Will be continued.</p>

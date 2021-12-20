@@ -1,0 +1,55 @@
+title=Programmatically compile Kotlin code
+date=2018-03-18
+type=post
+tags=runtime compilation,programmatically compile,Kotlin
+status=published
+headline=Programmatically compile Kotlin code
+subheadline=Compile Kotlin in Kotlin, dawg!
+summary=The Kotlin compiler is implemented in Java and Kotlin and available as a JVM dependency. That means you can compile Kotlin code in your Kotlin code :)
+image=images/Kotlin_Icon.png
+~~~~~~
+<p></p>Here's a small braindump again, because I don't want to forget how I managed to compile Kotlin files programmatically. There are some very small discussions online, for example <a href="https://discuss.kotlinlang.org/t/how-to-call-kotlin-compiler-to-compile-some-kotlin-source-files-from-java/872" target="_blank">this one</a>, but I find existing usages too complex and there are too many things that didn't work for me at the first few tries.<br />
+<br />
+So there's a very convenient artifact that seem to contain everything one needs in order to call a Kotlin compiler from within code and that's published for every Kotlin release. Use it with<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;">    <span style="color: #d0d0d0;">compile</span> <span style="color: #d0d0d0;">group:</span> <span style="color: #ed9d13;">'org.jetbrains.kotlin'</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">name:</span> <span style="color: #ed9d13;">'kotlin-compiler-embeddable'</span><span style="color: #d0d0d0;">,</span> <span style="color: #d0d0d0;">version:</span> <span style="color: #ed9d13;">"$kotlin_version"</span>
+</pre>
+</div>
+<br />
+The following snippet instantiates a compiler, passes a file and some other properties to it and executes compilation. The resulting class file can be found in the given output directory. <br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: 0.1em 0.1em 0.1em 0.8em; border: solid gray; overflow: auto; padding: 0.2em 0.6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">output</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">File(</span><span style="color: #ed9d13;">"/home/myuser/out"</span><span style="color: #d0d0d0;">)</span>
+
+<span style="color: #d0d0d0;">K2JVMCompiler().run</span> <span style="color: #d0d0d0;">{</span>
+    <span style="color: #6ab825; font-weight: bold;">val</span> <span style="color: #d0d0d0;">args</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">K2JVMCompilerArguments().apply</span> <span style="color: #d0d0d0;">{</span>
+        <span style="color: #d0d0d0;">freeArgs</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">listOf(File(</span><span style="color: #ed9d13;">"/home/myuser/KotlinFile.kt"</span><span style="color: #d0d0d0;">).absolutePath)</span>
+        <span style="color: #d0d0d0;">loadBuiltInsFromDependencies</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span>
+        <span style="color: #d0d0d0;">destination</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">output.absolutePath</span>
+        <span style="color: #d0d0d0;">classpath</span> <span style="color: #d0d0d0;">=</span> <span style="color: #d0d0d0;">System.getProperty(</span><span style="color: #ed9d13;">"java.class.path"</span><span style="color: #d0d0d0;">)</span>
+                <span style="color: #d0d0d0;">.split(System.getProperty(</span><span style="color: #ed9d13;">"path.separator"</span><span style="color: #d0d0d0;">))</span>
+                <span style="color: #d0d0d0;">.filter</span> <span style="color: #d0d0d0;">{</span>
+                    <span style="color: #d0d0d0;">File(it).exists()</span> <span style="color: #d0d0d0;">&amp;amp;&amp;amp;</span> <span style="color: #d0d0d0;">File(it).canRead()</span>
+                <span style="color: #d0d0d0;">}.joinToString(</span><span style="color: #ed9d13;">":"</span><span style="color: #d0d0d0;">)</span>
+        <span style="color: #d0d0d0;">noStdlib</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span>
+        <span style="color: #d0d0d0;">noReflect</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span>
+        <span style="color: #d0d0d0;">skipRuntimeVersionCheck</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span>
+        <span style="color: #d0d0d0;">reportPerf</span> <span style="color: #d0d0d0;">=</span> <span style="color: #6ab825; font-weight: bold;">true</span>
+    <span style="color: #d0d0d0;">}</span>
+<span style="color: #999999; font-style: italic;">//        output.deleteOnExit()</span>
+    <span style="color: #d0d0d0;">execImpl(</span>
+            <span style="color: #d0d0d0;">PrintingMessageCollector(</span>
+                    <span style="color: #d0d0d0;">System.</span><span style="color: #6ab825; font-weight: bold;">out</span><span style="color: #d0d0d0;">,</span>
+                    <span style="color: #d0d0d0;">MessageRenderer.WITHOUT_PATHS,</span> <span style="color: #6ab825; font-weight: bold;">true</span><span style="color: #d0d0d0;">),</span>
+            <span style="color: #d0d0d0;">Services.EMPTY,</span>
+            <span style="color: #d0d0d0;">args)</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+The usage depends on the project where it is used, for example it coult be necessary to add a different classpath or add the classpath and a stdlib or something else.<br />
+<br />
+EDIT: I'm sure I found this snippet, or a similar one in the internet, but I can't find it anymore. If you found it, let me know and I will link it as source. </p>

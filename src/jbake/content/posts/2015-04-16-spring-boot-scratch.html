@@ -1,0 +1,65 @@
+title=Spring with Boot, Maven and IntelliJ from scratch
+date=2015-04-16
+type=post
+tags=IntelliJ,java,spring,maven
+status=published
+headline=Spring with Boot, Maven and IntelliJ from scratch
+subheadline=A simple setup that can be used to start in production
+summary=What steps are needed to get ready for development with Spring Boot and IntelliJ?
+~~~~~~
+<p>There will never be enough tutorials about how to use Spring with an IDE. Here's another one in case of someone wants to know how to setup a development environment with IntelliJ. Especially the hot reloading features are very important and nobody wants to miss them. Here's how one can do it.<br />
+    <br />
+    <br />
+<ol>
+    <li>Create a new maven project. Don't use archetypes.</li>
+    <li>Edit the pom.xml file to use a parent from Spring Boot that does a lot of configuration for you.<br />
+        <pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">   &lt;parent&gt;
+     &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+     &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+     &lt;version&gt;1.1.5.RELEASE&lt;/version&gt;
+   &lt;/parent&gt;
+</code></pre>
+    </li>
+    <li>Also, the spring boot dependency has to be added to the pom.xml.<br />
+        <pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">   &lt;dependencies&gt;
+     &lt;dependency&gt;
+       &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+       &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+     &lt;/dependency&gt;
+   &lt;/dependencies&gt;
+</code></pre>
+    </li>
+    <li>The main application class is configured to enable auto configuration. For further information, one should read one of the thousands of Spring tutorials.<br />
+        <pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> @Configuration
+ @ComponentScan
+ @EnableAutoConfiguration
+ public class Application {
+   public static void main(String[] args) {
+     ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
+   }
+ }
+</code></pre>
+    </li>
+    <li>
+        Now you could add controllers and other stuff. And run the main class from your run configuration. In order to have an executable fat jar, you could use the maven assembly plugin (see one of my other posts). Class reloading with this run configuration should work out of the box.</li>
+    <li>The convention seems to say one should place resources in <i>src/main/resources/static.</i>&nbsp;Placing an <i>index.html</i>&nbsp;in there will make it available via the applications root path. However, if you use <i>src/main/webapp/ </i>as your folder structure, you fulfill standard java web application convention and make Tomcat automatically recognizing your stuff. You then have to access your static content via <i>/static/index.html</i>&nbsp;or similar, or you can reconfigure your routes (not covered here).</li>
+    <li>If you work on your static content, you want it to be reloaded automatically. However, this doesn't happen with the configuration so far. That's because of the fact that your static content will be copied into a working directory - changing the root files doesn't change their copies. There may be other ways, I successfully tried to use spring boot maven plugin.<br />
+        <pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;">       &lt;plugin&gt;
+         &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+         &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+         &lt;dependencies&gt;
+           &lt;dependency&gt;
+             &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+             &lt;artifactId&gt;springloaded&lt;/artifactId&gt;
+             &lt;version&gt;1.2.0.RELEASE&lt;/version&gt;
+           &lt;/dependency&gt;
+         &lt;/dependencies&gt;
+       &lt;/plugin&gt;
+</code></pre>
+    </li>
+    <li>
+        Executing the goal <i>spring-boot:run </i>in your IDE will now launch the application and automatically reload your content. Debugging with breakpoints and hot reloading your classes &nbsp;seems to not work with this run configuration any more. But if you want to work on the backend of your application, you could run the main class like before.</li>
+</ol>
+<div>
+    If anyone knows a better way to setup a development environment, I would be curious about it, just tell me. Especially it would be nice to have only <b>one</b>&nbsp;run config for reloading static content and classes with breakpoints and stuff alltogether.</div>
+</p>

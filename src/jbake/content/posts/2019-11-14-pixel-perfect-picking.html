@@ -1,0 +1,14 @@
+title=Pixel perfect picking with deferred rendering
+date=2019-11-14
+type=post
+tags=programmable vertex pulling,opengl,gpu,
+status=published
+headline=Pixel perfect picking
+subheadline=Made easy with deferred rendering
+summary=ID buffers in (only a bit) advanced deferred rendering will make pixel perfect picking a breeze.
+~~~~~~
+<p>There are several ways to accomplish pixel perfect picking in one's engine. Some tutorials mention an object hierarchy as a scene representation in order to trace rays for picking. This is often done on the CPU, where information about the object is already available when the ray hit callback is invoked when tracing. On the GPU, this could be done with a compute shader or a vertex shader that writes to an output buffer... this output buffer can be read back on the CPU.<br />
+<br />
+With deferred rendering however, I have a simpler approach that doesn't involve any tracing at all. Since I need <i>object IDs</i> for later passes to fetch instance data out of a big buffer, I write them to one output texture in my deferred rendering buffer. The output texture can be of type int or uint, depending on the amount of objects you have to handle. One can pack the index into bits of a regular 8bit rgba texture, into a floating point texture, or whatever texture has some bits space left in your gbuffer. After the gbuffer pass of deferred rendering was done, one can use <i>glReadPixels</i> (with read buffer set) or <i>glGetTexImage </i>and the current mouse position to get the index of the clicked object back to the cpu side of things. Besides the format handling and the bit mangling, this is rather trivial, so I won't post code here, but here's a nice video of the usage in my new ribbon based editor :)<br />
+<br />
+    <iframe allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="" frameborder="0" height="315" src="https://www.youtube.com/embed/eHnQblDrssg" width="560"></iframe></p>

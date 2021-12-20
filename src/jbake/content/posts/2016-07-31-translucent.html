@@ -1,0 +1,17 @@
+title=Simple deferred translucent foliage rendering
+date=2016-07-31
+type=post
+tags=foliage rendering,translucency,shadow mapping,global illumination
+status=published
+headline=Simple deferred translucent foliage rendering
+subheadline=Only feasible for super thin objects
+summary=Translucency or subsurface scattering may be costly, but for super thin objects, we can do a trick in a deferred renderer to get some kind of translucency.
+image=images/foliage.PNG
+~~~~~~
+<p>Translucency seems to be one of the new illumination features that every graphics engine has to provide these days. The effect is most noticeable on organics, like skin (ears for example) and plant leafs. For the latter, there's a nice and easy way to implement it - this solution only works for very thin objects. This means double sided triangles, like paper, curtains, or leafs. Other cases would be more complicated.<br />
+ <br />
+ You should have a mechanism to support multiple material types in your deferred renderer already. Then you need to disable backface culling, or the back side of the object won't be rendered at all...Let's talk about direct illumination first. Light traveled through the object and direct light is treated at the same time. Since we assume that our translucent objects are infinitely thin, we don't need to determine a thickness, like you would have to, regularly. An artificial thickness can be provided via per-object parameter or through a texture. One could assume, that texture coordinates are the same for the point on the front and the back side of the currently rendered fragment. For normals, another assumption is possible: The normal on the back side should be the current fragment's normal, but just negated. Using different normals or diffuse texture for the backside is not easy to add here, since you can't know if you are currently rendering the front or the back side ob the object.<br />
+ <br />
+ After calculating the regular lighting, calculate the lighting with the artificial backface normal und multiply it with the object's thickness at this point. Add the two values and you're done. Even though the usage is limited to very thin and simple-colored objects, this can look very nice, for example with a curtain:<br />
+ <br />
+Look at the subtle shadow of the sphere above the curtain that you can now see from below the curtain.</p>

@@ -1,0 +1,21 @@
+title=Smart property delegation in Kotlin
+date=2019-12-19
+type=post
+tags=delegation,properties,Kotlin,
+status=published
+headline=Smart property delegation
+subheadline=In Kotlin
+summary=Delegating access to a property to another property is needed more often than I thought.
+~~~~~~
+<p>Every now and then I have a use case where I have a data holder object that is wrapped by some other object. With Kotlin's interface delegation, it's very easy to implement an interface by delegating to the implementing property. However, sometimes you don't have interfaces, so I realized that there's one thing missing from the Kotlin standard lib: Have a property delegating to another property. Or at least I wasn't able to find it and it's kind of difficult to google that. So here's the solution:<br />
+<br />
+<iframe src="https://pl.kotl.in/mm9st8WI6"></iframe>
+
+<br />
+<br />
+I'm using a property reference (you need the reflection dependency for that) for generic property (get and set) usage. This is kind of a lense, known from functional programming I guess.<br />
+<br />
+Nice things can done with that, for example typesafe ui components can be generated like that:<br />
+<br />
+<iframe src="https://pl.kotl.in/lLRBdr2jd"></iframe>
+</p>

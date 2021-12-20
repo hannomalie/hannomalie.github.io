@@ -1,0 +1,21 @@
+title=MBassador PublicationErrorHandler
+date=2015-12-18
+type=post
+tags=java
+status=published
+headline=MBassador PublicationErrorHandler
+subheadline=Errors, where are you?
+summary=One needs to explicitly do error handling for events with MBassador.
+~~~~~~
+<p>I was very confused when my thrown events didn't show any results somewhere. And then, I realized I did not pay enough attention, because MBassador was indeed very nice to suggest registering an ErrorHandler for publication failures. The documentaiton is quite sparse about that, it took me some time to figure it out, so with version around 1.2.4, this is the way you can do it:<br />
+ <br />
+<pre style="background-image: URL(http://2.bp.blogspot.com/_z5ltvMQPaa8/SjJXr_U2YBI/AAAAAAAAAAM/46OqEP32CJ8/s320/codebg.gif); background: #f0f0f0; border: 1px dashed #CCCCCC; color: black; font-family: arial; font-size: 12px; height: auto; line-height: 20px; overflow: auto; padding: 0px; text-align: left; width: 99%;"><code style="color: black; word-wrap: normal;"> IBusConfiguration config = new BusConfiguration()
+  .addFeature(Feature.SyncPubSub.Default())
+  .addFeature(Feature.AsynchronousHandlerInvocation.Default())
+  .addFeature(Feature.AsynchronousMessageDispatch.Default())
+  .addPublicationErrorHandler(error -&gt; {
+    System.out.println(error);
+  });
+ new MBassador(config);
+</code></pre>
+</p>

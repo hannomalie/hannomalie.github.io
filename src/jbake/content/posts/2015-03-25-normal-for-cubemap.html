@@ -1,0 +1,19 @@
+title=Get normal for cubemap texel
+date=2015-03-25
+type=post
+tags=cubemap,opengl,compute shader,graphics programming,convolution,global illumination,radiance
+status=published
+headline=Get normal for cubemap texel
+summary=How to get a vector from origin to cubemap texel in a compute shader.
+~~~~~~
+<p>Since I came across this problem and wasn't able to find an easy solution on the internet, I decided to write s small recipe to calculate normals when you want to do manual mipmapping/radiance convolution with cubemaps in OpenGL. I use compute shaders, so for geometry/vertex/pixel-pipeline, you could use layered rendering and other stuff.<br />
+    <br />
+    First of all, the shader needs the current cubemap face index as a uniform variable. I recommend using the standard OpenGL indices (see link below).<br />
+    <br />
+    Most likely, you are using the standard&nbsp;<a href="http://content.gpwiki.org/images/b/b5/Figure_5_Visualization_of_a_cube_map.png" target="_blank">cubemap layout</a>. If this is not the case, you have to change the vectors in my code. So with a given face index and a given texel position, the problem can be solved:<br />
+    <br />
+    <br />
+    <br />
+    <script src="https://gist.github.com/hannomalie/156c662d2969088f0a03.js"></script>
+    <br />
+    What happens here is that I calculate the pixel position in texture space with the help of the invoation position. The compute shader is invoked with cubemapfaceResolution.x/16, cubemapfaceResolution.y/16, 1. Knowing which (OpenGL) world axis the view direction of the virtual camera, facing the current cubemap side from the inside (cubemaps origin) is, the other two axis are the two orthogonal axes. These two axes' values grow with the texelcoordinates we already have. But therefore, they have to be remapped from 0 - 1 to -1 - 1. The resulting vector can be used to sample a cubemap as it is. Normalization could be unnecessary.</p>

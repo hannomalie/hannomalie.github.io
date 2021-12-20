@@ -1,0 +1,25 @@
+title=glDrawElementsBaseVertex demystified
+date=2016-09-24
+type=post
+tags=single pass rendering,graphics programming,opengl
+status=published
+headline=glDrawElementsBaseVertex demystified
+subheadline=There are some even more complicated versions of that function, yes
+summary=Avoiding costly buffer bindings is key for an efficient renderer. So we need something like glDrawElementsBaseVertex, I will explain what it does.
+~~~~~~
+<p>In days of Vulkan and DX12, I started investigating how much time my cpu spends on pushing the OpenGL draw calls I need. Turns out: too much if you ask me. On my desktop machine, there's no problem at all, but on weaker hardware, it might be relevant. And at all, my CPU should not have work to do at all, or at least I don't want it to spend more time on pushing a command than the command actually takes to complete on the GPU.<br />
+ <br />
+ One very evil thing you mostly can not avoid is vertex buffer binding. If you want to have it flexible, every model could have its own vertex buffer, which you can unload, modify and stuff. However, most of your scene contents share a common vertex format - for example you mostly have position attributes, normals and texture attributes. Heavier stuff like bone matrices and material parameters could be unload to seperate buffer objects and accessed via an index, so using a shared vertex and index buffer for all your scene's geometry really really should pay off.<br />
+ <br />
+ My way was using a pinned memory buffer (aka persistent mapped) that automatically doubles when too small. Registering a new model in the scene simply appends the unique vertex attributes of this model to the global buffer. The same for the indices. Drawing could now be done with glDrawElementsBaseVertex.<br />
+ <br />
+ Turns out there's a lot of confusion about the usage of this beast and some people even can't figure out how it is different from glDrawElements with a index buffer offset passed. The magic is: the base vertex attribute of <b>glDrawElementsBaseVertex </b>adds a value to the contents of your index buffer. <b>Indeed, it's not an offset that is used to retrieve the current index from the index buffer, it is an offset that is actually added to the value of your index</b>. Why? Because this way, you don't have to take care of adjusting indices by yourself when appending indices to a global index buffer. Here's an example:<br />
+ <br />
+ You have a plane, consisting of two triangles - 4 unique vertices (the corners) and 6 indices (2 triangles a 3 vertices). After you put those in your global buffers, you want to add another plane. If you append the new plane's 4 unique vertices to the global vertex buffer, you have 8 vertices in it. The first vertex can be accessed with index 4+0, the second one with 4+1 and so on. This offset has to be added to the indices of the new plane, or you can't use its indices with the global buffers. Since this is dumb work, OpenGL offers glDrawElementsBaseVertex. In this case, one could use it as follows to draw your two planes:<br />
+ <br />
+ <i>glDrawElementsBaseVertex (GL_TRIANGLES, 3*2, GL_UNSIGNED_INT, 4*0, 0);</i><br />
+ <i>glDrawElementsBaseVertex (GL_TRIANGLES, 3*2, GL_UNSIGNED_INT, 4*4, 4);</i><br />
+ <br />
+ where the second parameter is the index count - 2 triangles times 3 indices per triangle, the fourth parameter is the byte offset into the index buffer and the last parameter is the value that should be added to each index value of your current draw call.<br />
+ <br />
+ Puh, took me a while. Now we're prepared for indirect drawing.</p>

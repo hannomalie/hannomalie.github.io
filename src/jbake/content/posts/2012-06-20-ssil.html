@@ -1,0 +1,152 @@
+title=Simple SSIL implementation (XNA 4.0)
+date=2012-06-20
+type=post
+tags=shader,graphics programming
+status=published
+headline=Simple SSIL implementation (XNA 4.0)
+summary=Screen space indirect lighting can enhance your lighting at a low cost.
+image=images/mitssil3_lightadded.PNG
+~~~~~~
+<p><h3>Why SSIL?</h3>
+<div>
+    My previous post showed <a href="http://en.wikipedia.org/wiki/Screen_Space_Ambient_Occlusion">SSAO</a> as a simple method to enhance your rendered videogame images and should be read before this post.
+    I first read about screen space indirect lighting <a href="http://diaryofagraphicsprogrammer.blogspot.de/2008/06/screen-space-global-illumination.html">here</a> and the idea is not bad:
+    When we need to sample depth values from random directions in screen space for SSAO already, why don't we use the same technique for indirect lighting instead of only occlusion?
+    In addition to SSAO, we sample <a href="http://de.wikipedia.org/wiki/Albedo">Albedo</a> and lighting that the deferred rendering buffer already contains and use it as indirect lighting when occlusion is given.
+    This makes a local lighting model a bit non local.
+
+</div>
+    <br/>
+    <h4>Step 1: Changes to the SSAO shader</h4>
+<div>
+    Actually the SSA shader contains nearly everything we need already.
+    In addition to color, depth, normal and noise, we need lighting information.
+    As mentioned earlier, using a deferred renderer enables this, because the lighting information can be present in a render target texutre already.
+    So the first step needs the following adjustments:
+</div>
+<div>
+    <i>float3 light = tex2D(lightSampler,input.TexCoord).rgb;</i>
+</div>
+<div>
+    <br />
+</div>
+<div>
+    Before the loop, we need to define a variable that accumulates the indirect lighting.
+</div>
+<div>
+    <br /></div>
+<div>
+    <div>
+        <i>float3 resultRadiosity = 0;</i>
+    </div>
+</div>
+<div>
+    <br />
+</div>
+<div>
+    In the loop, we need four additional lines. In addition to the frament coordinates, we need the lighting information and the albedo value of the occluding pixels.
+    The intensity of the indirect lighting is added as the dot product between surface normal and occlusion direction, similar to how a point light would be evaluated.
+</div>
+<div>
+    <br />
+</div>
+<div>
+    <div>
+        <i>float3 occluderLight = tex2D(lightSampler,se.xy);</i></div>
+    <div>
+        <i>float3 occluderAlbedo = tex2D(colorSampler,se.xy).rgb;</i><br />
+        <i>float intensity = </i><span><i>dot(occluderAlbedo,1);</i></span></div>
+    <div>
+        <br />
+        <i>resultRadiosity += step(falloff,depthDifference)*normDiff*(smoothstep(color,occluderAlbedo,intensity)) * occluderLight;</i></div>
+</div>
+<div>
+    <br />
+</div>
+<div>
+    <b>EDIT 2021</b>: I removed a part of the original post which I think is misleading or even a bit wrong.
+</div>
+<br/>
+<h4>Step 2: Finish</h4>
+<div>
+    Normally, we're done already.
+    But someone who also uses XNA 4.0 and therefore shader model 3.0 might know that the sample rate has to be very low, so that we don't blow up our instruction count.
+    Especially when SSAO and SSIL is done in a single shader, there's not much left.
+    For demo purpouses, I extracted the SSIL stuff and configured 13 samples.
+    Looks like this:<br />
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ssil13samples.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="191" src="../images/ssil13samples.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">SSIL, no blur</td></tr>
+    </tbody></table>
+    <div style="text-align: center;">
+        <br /></div>
+    <div style="text-align: center;">
+        <br /></div>
+    Since grain is noticeable in the final image, we need some blur. Looks a bit better already:<br />
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ssil13samplesblur.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="../images/ssil13samplesblur.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">SSIL, with blur</td></tr>
+    </tbody></table>
+    <br />
+    <br />
+    Maybe one can use normals and depth values a bit more cleverly to get better results, but for now I don't know how.<br />
+    <br />
+    The comparison between the final result and without SSIL can be seen here.
+    Especially on the stomach of the lizard, the difference is noticeable - normally, there wouldn't be any light at all.
+    Or beneath the spaceship.
+    Since the effect is quite strong, one may reduce the intensity a bit.
+    <br />
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ohnessil2.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="191" src="../images/ohnessil2.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image without SSIL</td></tr>
+    </tbody></table>
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssil2.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="190" src="../images/mitssil2.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image with SSIL (nur Texturfarbe)</td></tr>
+    </tbody></table>
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssil2_lightadded.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="http://1.bp.blogspot.com/-IRgSosq2ojU/T-EIVtPFrkI/AAAAAAAAACk/n7rWGxI9RXI/s320/mitssil2_lightadded.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image with SSIL (texture color and light color)</td></tr>
+    </tbody></table>
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssil2_lightadded_madehalf.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="http://2.bp.blogspot.com/-c0Tnq1voDTg/T-EMRVFv3XI/AAAAAAAAADE/Fde6qKTxCBM/s320/mitssil2_lightadded_madehalf.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image with SSIL (texture color and light color, intensity 0.25)</td></tr>
+    </tbody></table>
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssil2_lightadded_madequarter_lightintense.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="191" src="http://1.bp.blogspot.com/-4_KUW2zCemc/T-ENSmuaM_I/AAAAAAAAADM/9k5khiwvI-s/s320/mitssil2_lightadded_madequarter_lightintense.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image with SSIL (texture color and light color, intensity 0.25, occludee's incoming light is used)</td></tr>
+    </tbody></table>
+    <div style="text-align: center;">
+        <br /></div>
+    <br />
+    <span style="font-size: 13px; text-align: left;"><br /></span><br />
+    <span style="font-size: 13px; text-align: left;">
+        Here as well: the wings would not receive light at a lot of small places without SSIL.
+        Some of the lighting is incorrect though.
+    </span></div>
+<div>
+    <br />
+    <div class="separator" style="clear: both; text-align: center;">
+    </div>
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/mitssil3_lightadded.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="../images/mitssil3_lightadded.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Image with SSIL (texture color and light color, occludee's incoming light is not used)</td></tr>
+    </tbody></table>
+    <br />
+    <table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+    <tr><td style="text-align: center;"><a href="../images/ohnessil3.PNG" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="192" src="../images/ohnessil3.PNG" width="320" /></a></td></tr>
+    <tr><td class="tr-caption" style="text-align: center;">Bild ohne SSIL
+    </td></tr>
+    </tbody></table>
+    <br />
+    <h4>Final thoughts and limitations</h4>
+</div>
+<div>
+    I already mentioned the high instruction count, but in order to get acceptable results, one needs quite a few samples.
+    Additionally, only a single bounce of indirect light is evaluated. And that also only works when the radius for the rays is kept small.
+    Finally, this is a screen space effect and that means only visible things contribute to the lighting.
+</div></p>

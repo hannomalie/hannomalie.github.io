@@ -1,0 +1,72 @@
+title=Ninja framework: Argument extractors
+date=2015-06-10
+type=post
+tags=dependency injection,argument extractors,java,ninja,web development
+status=published
+headline=Argument extractors
+subheadline=For the Ninja framework
+summary=Argument extractors are a bit underrepresented in the Ninja framework documentation, let's take a look at a more complex example.
+~~~~~~
+<p>The last post introduced a simple way to automatically extract a collection of objects from a form and inject it into a controller's action. However, when classes get more complex, this option is not the best one because of two reasons: Method signatures get bloated and the collections have to somehow get attached to the corresponding object (injected into the action as well) by hand. If one writes a new action and uses the built in functionality, it's possible that he forgets to update one of the instance's fields....saves...and boom: the object's data is gone.<br />
+    <br />
+    The functionality can be gathered into an <b>argument extractor</b>. Sadly, the official documentation only shows an example where the session is used to extract a simple session cookie. But what if you have to get complex form data? Ideally, one wants a clean action method signature, where the instance is injected correctly. This can be done with simply with an annotation:<!-- HTML generated using hilite.me --><br />
+    <br />
+    <!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">public</span> <span style="color: #d0d0d0;">Result</span> <span style="color: #447fcf;">saveTrip</span><span style="color: #d0d0d0;">(Context</span> <span style="color: #d0d0d0;">context,</span> <span style="color: orange;">@argumentextractors.Trip</span> <span style="color: #d0d0d0;">Trip</span> <span style="color: #d0d0d0;">trip)</span> <span style="color: #d0d0d0;">{</span>
+</pre>
+</div>
+<br />
+It's important to note, that you can't use other built-in extractors (<i>Param, Params</i>) any more, after you parsed the request. Additionally, your own extractor has to be the first extracting paramter in the signature.<br />
+<br />
+The marker interface specifies the extractor class:
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: orange;">@WithArgumentExtractor</span><span style="color: #d0d0d0;">(TripExtractor.</span><span style="color: #bbbbbb;">class</span><span style="color: #d0d0d0;">)</span>
+<span style="color: orange;">@Retention</span><span style="color: #d0d0d0;">(RetentionPolicy.</span><span style="color: #bbbbbb;">RUNTIME</span><span style="color: #d0d0d0;">)</span>
+<span style="color: orange;">@Target</span><span style="color: #d0d0d0;">({ElementType.</span><span style="color: #bbbbbb;">PARAMETER</span><span style="color: #d0d0d0;">})</span>
+<span style="color: #6ab825; font-weight: bold;">public</span> <span style="color: orange;">@interface</span> <span style="color: #d0d0d0;">Trip</span> <span style="color: #d0d0d0;">{</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+The magic then has to be implemented by yourself. Therefore, extend a <i style="font-weight: bold;">BodyAsExtractor<t>,&nbsp;</t></i>where <b><i>T</i></b> is the return type you want to extract. There are three methods to be overriden. I don't have a clue what the third one (<i>getFieldName()</i>) does, but the important one is<t></t><br />
+<br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #6ab825; font-weight: bold;">public</span> <span style="color: #d0d0d0;">Trip</span> <span style="color: #447fcf;">extract</span><span style="color: #d0d0d0;">(Context</span> <span style="color: #d0d0d0;">context)</span> <span style="color: #d0d0d0;">{}</span>
+</pre>
+</div>
+<br />
+Your form data has to be gathered now. Took me some time to find out how to do this - actually, you can do<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">String</span> <span style="color: #d0d0d0;">body</span> <span style="color: #d0d0d0;">=</span> <span style="color: #ed9d13;">""</span><span style="color: #d0d0d0;">;</span>
+<span style="color: #6ab825; font-weight: bold;">while</span> <span style="color: #d0d0d0;">(context.</span><span style="color: #bbbbbb;">getReader</span><span style="color: #d0d0d0;">().</span><span style="color: #bbbbbb;">ready</span><span style="color: #d0d0d0;">())</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">body</span> <span style="color: #d0d0d0;">+=</span> <span style="color: #d0d0d0;">context.</span><span style="color: #bbbbbb;">getReader</span><span style="color: #d0d0d0;">().</span><span style="color: #bbbbbb;">readLine</span><span style="color: #d0d0d0;">();</span>
+<span style="color: #d0d0d0;">}</span>
+</pre>
+</div>
+<br />
+and that's it. I was'n able to use the InputStream the context provides directly. Now the ugly part. the params string of the form <i>http://example.org/path/to/file?a=1&amp;b=2&amp;c=3 </i>should result in a list of <i>a=1, b=2, c=3. </i>Since this is a <i>common </i>task, it's implemented in the apache <i>commons </i>htmlUtils - nice wordplay. I extracted some single methods from their library, because I only use a few ones. Now, you have to apply the parsed values by hand. To mention would be, that this can only work, if the keys you use to extract all the stuff don't change between forms. Otherwise, you would have to implement another extractor.<br />
+<br />
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">trip.</span><span style="color: #bbbbbb;">getStops</span><span style="color: #d0d0d0;">().</span><span style="color: #bbbbbb;">clear</span><span style="color: #d0d0d0;">();</span>
+<span style="color: #6ab825; font-weight: bold;">for</span> <span style="color: #d0d0d0;">(</span><span style="color: #6ab825; font-weight: bold;">int</span> <span style="color: #d0d0d0;">x</span> <span style="color: #d0d0d0;">=</span> <span style="color: #3677a9;">2</span><span style="color: #d0d0d0;">;</span> <span style="color: #d0d0d0;">x</span> <span style="color: #d0d0d0;">&lt;</span> <span style="color: #d0d0d0;">params.</span><span style="color: #bbbbbb;">size</span><span style="color: #d0d0d0;">();</span> <span style="color: #d0d0d0;">x++)</span> <span style="color: #d0d0d0;">{</span>
+  <span style="color: #d0d0d0;">trip.</span><span style="color: #bbbbbb;">getStops</span><span style="color: #d0d0d0;">().</span><span style="color: #bbbbbb;">add</span><span style="color: #d0d0d0;">(params.</span><span style="color: #bbbbbb;">get</span><span style="color: #d0d0d0;">(x).</span><span style="color: #bbbbbb;">getName</span><span style="color: #d0d0d0;">());</span>
+<span style="color: #d0d0d0;">}</span>
+<span style="color: #6ab825; font-weight: bold;">return</span> <span style="color: #d0d0d0;">trip;</span>
+</pre>
+</div>
+<br />
+The nice thing is now, that everyone who uses this object class, can use the extractor and afterwards just has to save the instance regularly in the controller action:
+
+<!-- HTML generated using hilite.me --><br />
+<div style="background: #202020; border-width: .1em .1em .1em .8em; border: solid gray; overflow: auto; padding: .2em .6em; width: auto;">
+<pre style="line-height: 125%; margin: 0;"><span style="color: #d0d0d0;">manager.</span><span style="color: #bbbbbb;">merge</span><span style="color: #d0d0d0;">(trip);</span>
+</pre>
+</div>
+<br />
+I'm curious if this is the intended way to extract stuff from forms. It's a pity that such an important requirement isn't documented better.</p>
