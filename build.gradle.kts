@@ -1,4 +1,5 @@
 import org.jbake.app.Oven
+import org.jbake.app.configuration.JBakeConfigurationFactory
 
 
 plugins {
@@ -33,10 +34,9 @@ val bake by tasks.registering {
 
     doFirst {
         destinationFolder.mkdir()
-        Oven(sourceFolder, destinationFolder, true).apply {
-            setupPaths()
-            bake()
-        }
+        Oven(
+            JBakeConfigurationFactory().createDefaultJbakeConfiguration(sourceFolder, destinationFolder, true)
+        ).bake()
     }
 }
 
