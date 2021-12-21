@@ -28,7 +28,7 @@ val destinationFolder = project.buildDir.resolve("jbake")
 val docsSubFolder = rootProject.rootDir.resolve("docs")
 
 val bake by tasks.registering {
-    inputs.dir(sourceFolder.resolve("content/posts"))
+    inputs.dir(sourceFolder)
     group = "build"
 
     doFirst {

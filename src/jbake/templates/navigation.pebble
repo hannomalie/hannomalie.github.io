@@ -1,6 +1,6 @@
 <nav id="nav">
     <ul class="links">
-        <li class="active"><a href="index.html">Blog</a></li>
+        <li class="active"><a href="{{ content.rootpath }}index.html">Blog</a></li>
         <li><a href="{{ content.rootpath }}archive.html">Archive</a></li>
         <li><a href="aboutme.html">About me</a></li>
     </ul>
