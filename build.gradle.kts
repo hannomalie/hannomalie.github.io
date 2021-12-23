@@ -34,9 +34,9 @@ val bake by tasks.registering {
 
     doFirst {
         destinationFolder.mkdir()
-        Oven(
-            JBakeConfigurationFactory().createDefaultJbakeConfiguration(sourceFolder, destinationFolder, true)
-        ).bake()
+        val config = JBakeConfigurationFactory()
+            .createDefaultJbakeConfiguration(sourceFolder, destinationFolder, true)
+        Oven(config).bake()
     }
 }
 
