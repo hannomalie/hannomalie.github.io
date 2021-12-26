@@ -56,6 +56,7 @@ val serveRelease by tasks.registering(JavaExec::class) {
 val compileToDocs by tasks.registering {
     group = "release"
     dependsOn(bake)
+    mustRunAfter(tasks.clean)
     doFirst {
         docsSubFolder.deleteRecursively()
         docsSubFolder.mkdir()
@@ -67,8 +68,12 @@ release {
     failOnCommitNeeded = false
     failOnUnversionedFiles = false
 }
+val addDocs by tasks.registering(Exec::class) {
+    mustRunAfter(compileToDocs)
+    workingDir = rootDir
+    commandLine("git", "add", "docs")
+}
 
 tasks.beforeReleaseBuild {
-    dependsOn(tasks.clean, compileToDocs)
+    dependsOn(tasks.clean, compileToDocs, addDocs)
 }
-compileToDocs { mustRunAfter(tasks.clean) }

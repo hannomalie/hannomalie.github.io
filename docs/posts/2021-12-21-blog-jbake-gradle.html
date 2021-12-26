@@ -1,0 +1,128 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/2021-12-21-blog-jbake-gradle.html">How to create a blog with JBake and Gradle</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2021-12-21</span>
+        <h1>How to create a blog with JBake and Gradle</h1>
+        <p>And Git and GitHub Pages</p>
+    </header>
+        <div class="image main"><img src="../images/jbake_gradle.png" alt="" /></div>
+        <p><blockquote>
+<p><strong><em>Disclaimer</em></strong>: There are probably ways to create a blog with or without a static site generator that a lot of people will see as more beginner friendly and better documented and supported than what I describe here. For whomever likes to work with the JVM ecosystem and Git, my way might be interesting.</p>
+</blockquote>
+<h2>Template</h2>
+<blockquote>
+<p><strong><em>Assumption</em>:</strong> You know the basics of html and css and what web servers do.</p>
+</blockquote>
+<p>The most important part of your blog is neither the bake tool nor the build tool but the template. Now I have said it and I am a developer. So my template can be found on <a href="https://html5up.net/">html5up</a>, just as some other nice ones, but of course you can chose an arbitrary one from the internet, as long as it's suitable for a static site.</p>
+<h2>Git</h2>
+<p>Initialize your git project and use <a href="https://github.com/github/gitignore/blob/main/Java.gitignore">Java's default .gitignore file</a>. You will need a foder named <em>docs</em> under your root folder, so that GitHub Pages knows where to find your pages. For now, create an empty index.html file within that folder and check in your first working version.</p>
+<h2>GitHub Pages</h2>
+<p>Create a new Repository in your GitHub account, name it exactly like your username, as also described <a href="https://pages.github.com/">here</a>. Go to <em>settings -&gt; Pages</em> and chose <em>branch: master</em> and folder: <em>/docs</em> so that your pages are goingto be served from this very folder on your master branch. When you push your new project containing an index.html file, you can already visit it on <em><a href="https://yourusername.github.io">https://yourusername.github.io</a></em>. From now on, you only have to do some <em>release</em>, which means you need to update the contents of the docs folder and push it on the master branch.</p>
+<h2>Gradle Part 1: JBake</h2>
+<blockquote>
+<p><strong><em>Assumption</em>:</strong> You have Java installed (at least 8, better is 11 or higher) or you know how to install it. You can also use JBake standalone as a docker image as described <a href="https://github.com/jbake-org/jbake#docker-image">here</a> and then your only dependency would be Docker.</p>
+</blockquote>
+<p>Initialize gradle within your root folder. You can do so by either installing an arbitrary gradle version on your machine and call <em>gradle init</em> on the cmd, or by using any gradle repository as a starting point. You could use <a href="https://github.com/hannomalie/hannomalie.github.io">mine</a> and delete the <em>docs</em> and <em>src</em> folders. This way, you don't need to install gradle. Afterwards, you can use the executables to launch gradle commands.</p>
+<blockquote>
+<p><strong><em>Assumption</em>:</strong> You use Kotlin as your language for gradle and you use IntelliJ idea (community edition is sufficient, it's <a href="https://www.jetbrains.com/idea/download/">free</a> and <a href="https://github.com/JetBrains/intellij-community">open source</a>)</p>
+</blockquote>
+<p>Now you need to add JBake as a dependency to the dependencies of your gradle build script (<em>not</em> to the application dependencies). You do so by adding</p>
+<pre><code class="language-kotlin">buildscript {
+    dependencies {
+        classpath(&quot;org.jbake:jbake-core:2.6.7&quot;)
+    }
+}
+</code></pre>
+<p>simply on the top level. Now you can use JBake's classes from within your build.gradle.kts. Remeber to reload your Gradle project in IntelliJ after adding the dependency, in order to make auto completion in the script file work:</p>
+<p><img src="../images/buildscript.gif" alt="alt text" width="900"/></p>
+<p>When you write the task definition like in the image above, you only need to create the default JBake source folder <em>src/jbake</em> and declare source and destination folders above your task definition like so</p>
+<pre><code class="language-kotlin">val sourceFolder = project.rootDir.resolve(&quot;src/jbake&quot;)
+val destinationFolder = project.buildDir.resolve(&quot;jbake&quot;)
+val docsSubFolder = rootProject.rootDir.resolve(&quot;docs&quot;) // we need that later
+</code></pre>
+<p>Configuring the sourceFolder as an input to the bake task enables caching and usage of <a href="https://blog.gradle.org/introducing-continuous-build">Gradle's built-in functionality of doing things continuously</a>. You can now just do <code>./gradlew -t bake</code> and as soon as you save it's baked automatically</p>
+<p><img src="../images/continuous_build.gif" alt="alt text" width="900"/></p>
+<p>I am using a full blown uncached JBake build, which takes not even two seconds to complete and is fast enough for me. There are some <a href="https://jbake.org/docs/2.6.7/#persistent_content_store">caching mechanisms</a> that would probably dramatically speed up single document changes, but I heaven't tried that and indeed if I had any more performance requirements, I would rather use the JBake executable and the built-in <a href="https://jbake.org/docs/2.6.7/#watch_mode">watch mode</a> that also includes a web server (just after I found out that to be faster of course ;) ).</p>
+<p>Last thing, when you want to use markdown, remove the default <em>HARDWRAPS</em> option from the JBake config by setting <em>markdown.extensions=AUTOLINKS,FENCED_CODE_BLOCKS,DEFINITIONS</em>, or you will have a hard time fighting long lines.</p>
+<h2>IntelliJ local web server</h2>
+<p>IntelliJ has a built-in web server, so navigating to the <code>build/jbake/posts/foo.html</code> file and clicking open either in internal or in default browser will give you a preview of your site immediately. The page can automatically be reloaded on changes, but this seems to only work when you a) either edit the html file directly (which is not practical), or when you b) refocus IntelliJ. So you can have a second window with the browser of your choice previewing your page and you need to CTRL-Tab CTRL-Tab in order to have the browser update the page. Odd, but I didn't find a way around that.</p>
+<h2>Gradle Part 2: Release workflow</h2>
+<p>So the simplest workflow would be to just generate the site into <em>/docs</em> for preview and production. Then write your content and whenever you think you're done add the content, generate the site, add everything with <code>git add --all</code>, <code>git commit</code> and <code>git push</code> and done. You would need to be careful with work in progress commits, where you changed the content, but don't want to publish the unfinished compiled site. And you need to take care of manually cleaning up the generated content when you decide <em>this is my release now</em>. Releases may be tagged manually so that you can rollback or find out where you made a mistake in the past. Would be better to do some more sophisticated things here and Gradle can help.</p>
+<p>First, we only generate into <em>/build/jbake</em>. Build is a working dir for Gradle and is not checked into version control, so we never push a work in progress site. Second, we write a small task that generates into the <em>/docs</em> folder, that indeed get checked in. This task can either bake into the build dir and copy the content to docs, or it can clear docs and generate into docs. It's close, but not exactly the same. I chose the former.</p>
+<pre><code class="language-kotlin">val compileToDocs by tasks.registering {
+    group = &quot;release&quot;
+    dependsOn(bake)
+    doFirst {
+        docsSubFolder.deleteRecursively()
+        docsSubFolder.mkdir()
+        destinationFolder.copyRecursively(docsSubFolder)
+    }
+}
+</code></pre>
+<p>The <a href="https://github.com/researchgate/gradle-release">gradle release plugin</a> is the de-facto standard of how you do releases with Gradle and is a quite proper tool to abstract over the problem of <em>doing a release of something</em>. After application, your build contains a <code>release</code> task and some hooks. Usually you want to treat your codebase as work in progress and only mark single commits as release of a specific version and immediately go over into wip state again. In the JVM world and with Gradle (to be more precise in the Maven standard ...) this is a SNAPSHOT workflow. So you need to write</p>
+<pre><code class="language-kotlin">release {
+    failOnCommitNeeded = false
+}
+tasks.beforeReleaseBuild {
+    dependsOn(compileToDocs)
+}
+</code></pre>
+<p>to tell Gradle that it needs to compile your site into the docs folder, commit all uncommitted files and commit a release version before setting the next snapshot version. So we only need to <code>./gradlew release</code> and afterwards we can push the master branch and released.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
