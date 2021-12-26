@@ -84,14 +84,23 @@ val docsSubFolder = rootProject.rootDir.resolve(&quot;docs&quot;) // we need tha
 }
 </code></pre>
 <p>The <a href="https://github.com/researchgate/gradle-release">gradle release plugin</a> is the de-facto standard of how you do releases with Gradle and is a quite proper tool to abstract over the problem of <em>doing a release of something</em>. After application, your build contains a <code>release</code> task and some hooks. Usually you want to treat your codebase as work in progress and only mark single commits as release of a specific version and immediately go over into wip state again. In the JVM world and with Gradle (to be more precise in the Maven standard ...) this is a SNAPSHOT workflow. So you need to write</p>
-<pre><code class="language-kotlin">release {
+<pre><code class="language-kotlin">val addDocs by tasks.registering(Exec::class) {
+    mustRunAfter(compileToDocs)
+    workingDir = rootDir
+    commandLine(&quot;git&quot;, &quot;add&quot;, &quot;docs&quot;)
+}
+
+release {
     failOnCommitNeeded = false
 }
 tasks.beforeReleaseBuild {
-    dependsOn(compileToDocs)
+    dependsOn(tasks.clean, compileToDocs, addDocs)
 }
 </code></pre>
-<p>to tell Gradle that it needs to compile your site into the docs folder, commit all uncommitted files and commit a release version before setting the next snapshot version. So we only need to <code>./gradlew release</code> and afterwards we can push the master branch and released.</p>
+<p>to tell Gradle that it needs to compile your site into the docs folder, add all uncommitted and untracked files and commit a release version before setting the next snapshot version. By default, the release plugin lets your build fail when untracked files are present. That's probably a sensible default for normal software projects and you also don't need to change it when you would manually commit after running the compileToDocs task manually, but since hosting of the site is done via GitHub Pages in this case, the <em>release artifact</em> needs to be checked in somewhere, so this can be seen as a compromise, because we're not using a seperate hosting service where we could just deploy to on release.</p>
+<p>So now we only need to <code>./gradlew release</code> and afterwards we can push the master branch and released.</p>
+<h2>Conclusion</h2>
+<p>First of all, of course the presented workflow is a bit more complex and consists of some tools you have to be able to handle. When you only want to get the shit done, try for example <a href="https://jekyllrb.com/docs/github-pages/">Jekyll with GitHub Pages</a>. Whenever you are either curious enough to try out presented tools, or when you are already comfortable with them, you would get some benefits (that you also get with other toolstacks of course). I especially like that Gradle is capable of making advanced workflows some task declarations and a single command. JBake is surprisingly simple and supports a lot of templating engines. And using Intellij for authoring nicely integrates all that: task execution, git, markdown and preview.</p>
 </p>
 </section>
             </div>

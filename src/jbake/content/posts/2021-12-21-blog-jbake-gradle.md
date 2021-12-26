@@ -127,14 +127,34 @@ In the JVM world and with Gradle (to be more precise in the Maven standard ...) 
 So you need to write
 
 ```kotlin
+val addDocs by tasks.registering(Exec::class) {
+    mustRunAfter(compileToDocs)
+    workingDir = rootDir
+    commandLine("git", "add", "docs")
+}
+
 release {
     failOnCommitNeeded = false
 }
 tasks.beforeReleaseBuild {
-    dependsOn(compileToDocs)
+    dependsOn(tasks.clean, compileToDocs, addDocs)
 }
 ```
 
-to tell Gradle that it needs to compile your site into the docs folder, commit all uncommitted files 
+to tell Gradle that it needs to compile your site into the docs folder, add all uncommitted and untracked files 
 and commit a release version before setting the next snapshot version.
-So we only need to `./gradlew release` and afterwards we can push the master branch and released.
+By default, the release plugin lets your build fail when untracked files are present. That's probably
+a sensible default for normal software projects and you also don't need to change it when you would manually commit
+after running the compileToDocs task manually, but since hosting of the site is done via GitHub Pages in this case,
+the _release artifact_ needs to be checked in somewhere, so this can be seen as a compromise, because we're not using
+a seperate hosting service where we could just deploy to on release.
+
+So now we only need to `./gradlew release` and afterwards we can push the master branch and released.
+
+## Conclusion
+First of all, of course the presented workflow is a bit more complex and consists of some tools you have to be able to handle.
+When you only want to get the shit done, try for example [Jekyll with GitHub Pages](https://jekyllrb.com/docs/github-pages/).
+Whenever you are either curious enough to try out presented tools, or when you are already comfortable with them, you would get
+some benefits (that you also get with other toolstacks of course). I especially like that Gradle is capable of making
+advanced workflows some task declarations and a single command. JBake is surprisingly simple and supports a lot of templating
+engines. And using Intellij for authoring nicely integrates all that: task execution, git, markdown and preview.
