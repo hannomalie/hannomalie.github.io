@@ -1,0 +1,273 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/speed-up-swing-rendering.html">Speed up rendering with Swing</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2022-01-02</span>
+        <h1>Speed up rendering with Swing</h1>
+        <p>In my CHIP-8 emulator</p>
+    </header>
+        <div class="image main"><img src="../images/Gauge_Green.png" alt="" /></div>
+        <p><p>During coding my CHIP-8 emulator, I came across the requirement for a few different rendering targets. The simplest one would have been a terminal, but the ergonomics are not that great when it's done with print statements and I also found some annoyances when using terminal - at least under windows - where clicking and resizing distorts and corrupts the rendering.</p>
+<p>One of my target platforms was JVM (locally installed on the user's machine or embeeded in the executable), so Swing is a valid option. The API is quite as simple as it can get.</p>
+<p>Now there's a problem: The emulator runs at 500Hz. That means we need to be able to run a step (consisting of any instruction, included rendering) in 2ms with a resolution of 64 x 32. That's a million instructions per second.</p>
+<p>Additionally, I implemented two rendering modes: A simple one that does exactly what CHIP-8 tells us: Setting a pixel black or white. A CRT-style one, that lets active pixels fade out over a short time. Both rendering modes share, that the emulator's framebuffer is a two dimensional boolean array.</p>
+<p>Here's a story about how I managed to achieve the goal without multithreading.</p>
+<h2>Simple Mode</h2>
+<p>Let's take a look at the simple rendering mode first.</p>
+<h3>Version 1: for x * y set color and fillRect</h3>
+<p>Straight forward, iterate over all pixels, set the color black or white and fill a rectangle of a pixel's dimension.</p>
+<pre><code class="language-kotlin">class SwingRenderer private constructor(private val keyListener: KeyListener) : JPanel(), Renderer {
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        emulator?.frameBuffer?.let { frameBuffer -&gt;
+            frameBuffer.forEachColumnIndexed { columnIndex, column -&gt;
+                column.forEachRowIndexed { rowIndex, row -&gt;
+                    g.color = if (row) { black } else white
+                    g.fillRect(
+                        padding + (columnIndex * pixelWidth),
+                        padding + (rowIndex * pixelHeight),
+                        pixelWidth,
+                        pixelHeight
+                    )
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>The code is as simple as the performance was bad. Didn't reach the goal of 2ms with that.</p>
+<h3>Version 2: clear, for x * y if black fillRect</h3>
+<p>Instead of rendering all pixels every time, the screen can be cleared and then only the black pixels need to be filled. The speed of rendering does now depend to a degree on how many pixels are black. When the screen contains a lot of white, the step reaches 2ms, but the experience is not optimal. Quick profiling showed that indeed most time is still spent on <em>fillRect</em>.</p>
+<h3>Version 3: write to image and draw image in one go</h3>
+<p>So the <em>fillRect</em> call is too slow, we need to get rid of that. We can throw a lot of draw instructions onto an intermediate image and afterwards draw the image in one go. That way the rendering doesn't need to do a lot of slow calls on the canvas and instead does a lot of faster calls onto something else.</p>
+<pre><code class="language-kotlin">class SwingRenderer private constructor(private val keyListener: KeyListener) : JPanel(), Renderer {
+    private val bufferedImage = BufferedImage(
+        Display.dimension.x,
+        Display.dimension.y,
+        BufferedImage.TYPE_INT_ARGB,
+    )
+    
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        frameBuffer.forEachRowIndexed { rowIndex, row -&gt;
+            row.forEachColumnIndexed { columnIndex, column -&gt;
+                val color = if (column) black else white
+
+                bufferedImage.setRGB(
+                    columnIndex,
+                    rowIndex,
+                    color.rgb
+                )
+            }
+        }
+        g.drawImage(bufferedImage, padding, padding,
+            Display.dimension.x * pixelWidth,
+            Display.dimension.y * pixelHeight,
+            null
+        )
+    }
+}
+</code></pre>
+<p>Note that it's not sufficient now to only write the black pixels, because we would then need to clear the image to white first, as we did with the graphics object before. Such an API is however not present on the image object - it looks different and would need further action so I skip it for now. Besides that, goal achieved, everything runs as fast as needed for 500Hz.</p>
+<h2>CRT-style mode</h2>
+<p>As mentioned earlier, the emulator itself maintains and provides a two dimensional boolean array as a framebuffer. This is not enough for something that fades from on to off, we need more bits of information than two. Since I wasn't exactly reaching out for super high performance, I added a private framebuffer that was a two dimensional float array to the CRT renderer. I also added an update method that gets called after every regular step, so that the following code takes the given framebuffer of the renderer and updates the private framebuffer, automatically refreshing new pixels and fading out old ones:</p>
+<pre><code class="language-kotlin">override fun update(deltaSeconds: Float) {
+    emulator?.let { emulator -&gt;
+        lastFrameBuffer.forEachIndexed { columnIndex, column -&gt;
+            column.forEachIndexed { rowIndex, row -&gt;
+                if (emulator.frameBuffer[columnIndex][rowIndex]) {
+                    column[rowIndex] = 1.0f
+                } else if (row &gt; 0) {
+                    column[rowIndex] = kotlin.math.max(0f, row - 0.004f) // scale with delta seconds when no fixed time step present ;)
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<h3>Version 1: Simple</h3>
+<p>Using the framebuffer copy containing floats now for rendering is straight forward. Instead of setting black color, we need to set a rgba color, containing alpha information. The API expects an Integer and uses only 8 bit (0 - 255). So we need to scale the float value between 0 and 1 to 0 and 255 and convert it into an int.</p>
+<pre><code class="language-kotlin">override fun paintComponent(g: Graphics) {
+    super.paintComponent(g)
+    g.color = white
+    g.fillRect(
+        padding,
+        padding,
+        Display.dimension.x * pixelWidth,
+        Display.dimension.y * pixelHeight
+    )
+    lastFrameBuffer.forEachIndexed { columnIndex, column -&gt;
+        column.forEachIndexed { rowIndex, row -&gt;
+            if (column[rowIndex] &gt; 0) {
+                val alpha = (column[rowIndex] * 255).toInt()
+                bufferedImage.setRGB(
+                    columnIndex,
+                    rowIndex,
+                    Color(black.red, black.green, black.blue, alpha).rgb
+                )
+            }
+        }
+    }
+    g.drawImage(bufferedImage, padding, padding,
+        Display.dimension.x * pixelWidth,
+        Display.dimension.y * pixelHeight,
+        null
+    )
+}
+</code></pre>
+<p>This doesn't reach our goal of 500Hz anymore. The application suffers from stuttering and slow-downs. Analyzing with Java Mission Control shows a surprisingly large amount of garbage collections, with usually over 10ms durations. Taking a look at the allocations reveals that an awful lot of Color instances seem to be instantiated, but not a lot of other stuff</p>
+<p><img src="../images/swing_rendering_without_alpha_cache.PNG" alt="swing rendering without alpha cache" width="100%"/></p>
+<p>And it's true: The thight loop creates a Color instance for every pixel in the output image, always, because we need to pass in the alpha value.</p>
+<h3>Version 2: List as a color cache, compute if absent</h3>
+<p>With a list of size 256, we can create all colors we need once and reuse them, avoiding the recreation, eliminating the need for garbage collections. The index is an int and could be our given alpha value.</p>
+<pre><code class="language-kotlin">private val alphaColorCache = mutableListOf&lt;Color?&gt;().apply {
+    repeat(256) { add(it, null) }
+}
+    
+override fun paintComponent(g: Graphics) {
+    // ...
+    val alpha = (column[rowIndex] * 255).toInt()
+    bufferedImage.setRGB(
+        columnIndex,
+        rowIndex,
+        (alphaColorCache.computeIfAbsent(alpha) { Color(black.red, black.green, black.blue, alpha) }).rgb
+    )
+    // ...
+}
+
+private fun &lt;E&gt; MutableList&lt;E&gt;.computeIfAbsent(alpha: Int, function: () -&gt; E): E {
+    if (get(alpha) == null) add(alpha, function())
+
+    return this[alpha]
+}
+</code></pre>
+<p>Results are still bad.</p>
+<p><img src="../images/swing_rendering_with_list_alpha_cache.PNG" alt="swing rendering with list alpha cache" width="100%"/></p>
+<p>Of course this was just a silly quick shot and I had to pay the bill immediately. The above implementation creates a function instance per pixel instead of a color instance. I could have left this step out as it's easy to fix, but I though it's somewhat interesting what consequences can come with seamingly harmless code and what it means for the runtime behaviour of the application.</p>
+<h3>Version 3: List as a color cache, compute if absent and inline function</h3>
+<p>Without further ado, forcing the compiler to inline the lambda function is achieved by adding the inline keyword in Kotlin.</p>
+<pre><code class="language-kotlin">private inline fun &lt;E&gt; MutableList&lt;E&gt;.computeIfAbsent(alpha: Int, function: () -&gt; E): E {
+    if (get(alpha) == null) add(alpha, function())
+
+    return this[alpha]
+}
+</code></pre>
+<p>Now allocations look better:</p>
+<p><img src="../images/swing_rendering_with_list_alpha_cache_with_inlining.PNG" alt="swing rendering with list alpha cache with inlining" width="100%"/></p>
+<h3>Version 4: List as a color cache, precompute all colors</h3>
+<p>My first quick shot could have been a different one as well: Creating a look up table upfront that already contains all alpha colors. This is practical, as there are no more than 256 values at all.</p>
+<pre><code class="language-kotlin">private val alphaColorCache = mutableListOf&lt;Color?&gt;().apply {
+    repeat(256) { add(it, Color(black.red, black.green, black.blue, it)) }
+}
+override fun paintComponent(g: Graphics) {
+    // ...
+    val alpha = (column[rowIndex] * 255).toInt()
+    bufferedImage.setRGB(columnIndex, rowIndex, alphaColorCache[alpha].rgb)
+    // ...
+}
+</code></pre>
+<p>Less common to do that in general code, but very common in computer graphics and indeed the simplest solution here. Now, the effect looks roughly like expected and the performance seem to be good enough.</p>
+<h3>Version 5: Eliminate garbage collections</h3>
+<p>The only thing that's left is that the performance is not steady, from time to time there are heavy slowdowns, like you can see in this recording (even though without recording the gif the slowdowns are not that intensive):</p>
+<p><img src="../images/space_invaders_crt_effect.gif" alt="space invaders crt effect" width="100%"/></p>
+<p>JMC again shows a lot of GC activity, now within a 20s time frame, the app made a total of 37s pauses. Most allocated instances are now of type int[] and this shows where the problem is found:</p>
+<p><img src="../images/swing_renderer_setrgb.PNG" alt="swing renderer setrgb" width="100%"/></p>
+<p>The method <em>setRGB</em> is implemented like this:</p>
+<pre><code class="language-kotlin">public void setRGB(int x, int y, int rgb) {
+    raster.setDataElements(x, y, colorModel.getDataElements(rgb, null));
+}
+</code></pre>
+<p>while the last parameter of getDataElements is a <em>pixel</em>. When null is passed in, an array of int is allocated internally. So let's not use the setRGB method but the setDataElements directly and pass in a reusable variable.</p>
+<pre><code class="language-kotlin">private val pixel = IntArray(4)
+private fun BufferedImage.setRGBEfficiently(columnIndex: Int, rowIndex: Int, color: Color) {
+    raster.setDataElements(
+        columnIndex, rowIndex, colorModel.getDataElements(color.rgb, pixel)
+    )
+}
+</code></pre>
+<p>Nice, down to 2ms GC in 20s time frame. But the AWT thread is still allocating things.</p>
+<h3>Version 6: Eliminate more garbage collections</h3>
+<p>The most significant allocation looks like a defensive copy of the graphics context in the</p>
+<p><img src="../images/swing_renderer_create_graphics.PNG" alt="swing renderer create graphics" width="100%"/></p>
+<p>It's the <code>super.paintComponent(g)</code> call. The method is implemented like this:</p>
+<pre><code class="language-kotlin">protected void paintComponent(Graphics g) {
+    if (ui != null) {
+        Graphics scratchGraphics = (g == null) ? null : g.create();
+        try {
+            ui.update(scratchGraphics, this);
+        }
+        finally {
+            scratchGraphics.dispose();
+        }
+    }
+}
+</code></pre>
+<p>And the documentation states</p>
+<blockquote>
+<p>[...] If you override this in a subclass you should not make permanent changes to the passed in Graphics. For example, you should not alter the clip Rectangle or modify the transform [...]. If you do not honor the opaque property you will likely see visual artifacts.</p>
+</blockquote>
+<p>I am not 100% sure about that, but I don't use any transforms and don't need to care about opacity, because I always draw an image that covers the whole surface, so I will replace the super call with <code>ui.update(g, this)</code> and gone are again some allocations.</p>
+<p>GC action is still at 2ms in 20s time frame though. So the last change didn't give a lot of benefit. Since my confidence is high enough about whether the last change can do any harm, I will leave it in - but keep in mind that there might lurk bug potential and add a comment for future me.</p>
+<p>While using the application, this is not noticable anymore, so the goal of 500Hz can be seen as achieved.</p>
+<h2>Conclusions</h2>
+<p>The CRT mode puts a lot more pressure on the rendering stuff, for two main reasons:</p>
+<p>a) The rendering needs to happen continuously instead of only on an instruction. This is because otherwise, the fade out would not be smooth but look like tearing.</p>
+<p>b) More pixels are non-white and therefore must be filled.</p>
+<p>This required a lot more optimization that wasn't necessary for the simple rendering. There have been some low hanging fruits that were easy to find through profiling with JMC. But optimization only goes so far - the application now spends most of the time rendering and it seems I can neither squeeze out more performance of the rendering nor reduce memory allocations in a sensible manner any further.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
