@@ -1,0 +1,187 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/kotlin-context-receivers.html">Kotlin&#39;s Context Receivers</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2022-05-05</span>
+        <h1>Kotlin&#39;s Context Receivers</h1>
+        <p>Might become a game changing feature</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p>I am annoying people in my periphery since 2018 how great <a href="https://blog.jetbrains.com/kotlin/2022/02/kotlin-1-6-20-m1-released/#prototype-of-context-receivers-for-kotlin-jvm"><em>context receivers</em></a> will be and how they might change the style we program (in Kotlin). I eagerly read and commented in at least three language enhancement proposals since back then and so I <em>had</em> to write something about the new feature and here it is - even though I probably can't tell you anything new or exciting that's not yet explained better by someone else.</p>
+<p>At first, I only wanted to write a short reminder what this feature is about, preparing for a more interesting test drive I did with them in a library of mine. But the more I tried to briefly introduce the feature, the more I had to think about discussions I had with colleagues over the years, when they first encountered Kotlin's extensions, going from &quot;oh no, this is not good, I like regular functions&quot; to &quot;oh, this is like a local API, we're doing context driven programming here, it's so readable&quot;.</p>
+<p>Let's start with a feature Kotlin has since ever:</p>
+<h2>Extensions</h2>
+<p>Extensions do not only let you extend classes you don't own, but also cleanly seperate your data from behaviour, your core domain from smaller side domains or API from non-API modules. More often than not, I wrote properties and functions as extensions, rather than as members. Short reminder how extensions work in Kotlin:</p>
+<pre><code class="language-kotlin">fun Person.getFullName(): String = &quot;$firstname $lastname&quot; // extension function declaration
+val Person.fullName: String get() = &quot;$firstname $lastname&quot; // extension property declaration
+
+println(Person().getFullName()) // extension function call
+println(Person().fullName) // extension property call
+</code></pre>
+<p>Extensions have another interesting property: They automatically propagate. Notice how it's not necessary to write <code>this.firstname</code> in the extension. It works just as we are used to in regular member functions. Let's take a look at another phenomenal feature of Kotlin:</p>
+<h2>Lambdas with receivers</h2>
+<p>Extension lambdas, so to say.</p>
+<pre><code class="language-kotlin">fun Person.introduceSelf(namePrinter: Person.() -&gt; String) {
+    println(&quot;Hi everyone! Let me introduce myself, I am ${namePrinter()}, nice to meet you!&quot;)
+}
+
+Person().introduceSelf { fullName } // we urge the user to decide what name should be used here
+</code></pre>
+<p>Of course, slightly odd example, as always, but the point is, that there is not much room to write it differently. One could write the extension function to accept a parameter rather than a lambda.</p>
+<pre><code class="language-kotlin">fun Person.introduceSelf(name: String) {
+    println(&quot;Hi everyone! Let me introduce myself, I am $name, nice to meet you!&quot;)
+}
+Person().run { introduceSelf(fullName) }
+// or
+val person = Person()
+person.introduceSelf(person.fullName)
+</code></pre>
+<p>The new problem is, that the person introducing herself has to pass in the name, which is not ergonomic. Of course, we can go further and just remove the extension receiver completely, because it is also not needed for the <code>introduceSelf</code> function.</p>
+<pre><code class="language-kotlin">fun introduce(name: String) {
+    println(&quot;Hi everyone! Let me introduce myself, I am $name, nice to meet you!&quot;)
+}
+
+val person = Person()
+introduceSelf(person.fullName)
+</code></pre>
+<p>But now we lost something. Calling <code>person.introduceSelf()</code> is arguably more meaningful and ergonomic than <code>introduceSelf(name)</code>. There is a reason Kotlin allows for extensions. Because using dot notation and calling functions <em>on</em> objects rather than <em>with</em> objects is more suitable in a lot of situations.</p>
+<h2>Member Extensions</h2>
+<p>Member extensions are currently the only way to get at least one collaborateur into the mix when an extension receiver is needed.</p>
+<pre><code class="language-kotlin">class DefaultFullNameStrategy {
+    val Person.fullName get() = &quot;$firstname $lastname&quot; // member extension property declaration
+    fun Person.introduceSelf() { println(&quot;Hi everyone! Let me introduce myself, I am fullName, nice to meet you!&quot;) }
+}
+class ReversedFullNameStrategy {
+    val Person.fullName get() = &quot;$lastname, $firstname&quot; // member extension property declaration
+    fun Person.introduceSelf() { println(&quot;Hi everyone! Let me introduce myself, I am fullName, nice to meet you!&quot;) }
+}
+
+ReversedFullNameStrategy().run { // bring a strategy into scope, 'this' is now of type ReversedFullNameStrategy
+    Person().introduceSelf() // member extension function call
+}
+</code></pre>
+<p>Implementing the <code>introduceSelf</code> function in the NameStrategy doesn't make sense, or in other words: Going down this road leads to unintentional coupling.</p>
+<p>Now since the strategies don't have any state, we can simply make them object declarations. Properties and functions on object declarations can be imported statically.</p>
+<pre><code class="language-kotlin">object DefaultFullNameStrategy {
+    val Person.fullName get() = &quot;$firstname $lastname&quot; // member extension property declaration
+    fun Person.introduceSelf() { println(&quot;Hi everyone! Let me introduce myself, I am fullName, nice to meet you!&quot;) }
+}
+object ReversedFullNameStrategy {
+    val Person.fullName get() = &quot;$lastname, $firstname&quot; // member extension property declaration
+    fun Person.introduceSelf() { println(&quot;Hi everyone! Let me introduce myself, I am fullName, nice to meet you!&quot;) }
+}
+
+import ReversedFullNameStrategy.introduceSelf // import the 'static' extension function
+Person().introduceSelf() // member extension function call
+</code></pre>
+<p>Using object declarations for namespacing is convenient, but it doesn't give much: People will now import the extension to circumvent using a scoping function and the new scope of the extension is your whole file. For static functionality, that might be sufficient, but then, when is it favorable over a simple top level extension?</p>
+<h2>Context receivers to the rescue</h2>
+<p>Whenever there is functionality that is a dependency for some other functionality we have two options. Dependency injection or statically referencing the functionality in the implementation (ignoring nasty thread local hacks and sorts). With context receivers, declarations can get additional types attached, that are expected to be present as a context on the call site. Let's take a look at the first example again, using that feature:</p>
+<pre><code class="language-kotlin">interface NameStrategy {
+    val Person.fullName: String
+}
+class DefaultFullNameStrategy: NameStrategy {
+    val Person.fullName get() = &quot;$firstname $lastname&quot; // member extension property declaration
+}
+
+context(NameStrategy)
+fun Person.introduceSelf() {
+    println(&quot;Hi everyone! Let me introduce myself, I am $fullName, nice to meet you!&quot;)
+}
+DefaultFullNameStrategy().run {
+    Person().introduceSelf()
+}
+</code></pre>
+<p>We have now fulfilled the interface segregation guideline and no function pollutes the NameStrategy interface. The call is now ergonomic because we don't have to pass in strange parameters. But we also urge the user to provide a strategy and limit that to a scope, rather than having him import sth that is used on the file level. Sure, one can complain about the syntax of bringing the context into scope here, but read on.</p>
+<p>In a real world application, there is likely more than one such context. For example there is almost always a logging context, a config context and maybe a transaction context. Even more interesting are scopes of effects, for example a scope that can catch IO errors and automatically return a Result&lt;T, IOError&gt;. So the application would rather look like</p>
+<pre><code class="language-kotlin">with(
+    DefaultNameStrategy(),
+    LoggingContext(),
+    ConfigContext(),
+) {
+    Person().introduceSelf()
+}
+
+context(NameStrategy,LoggingContext,ConfigContext)
+fun Person.introduceSelf() {
+    val timestamp = if(logTimestamps) now() + &quot; &quot; else &quot;&quot; // uses ConfigContext
+    // uses LoggingContext and NameStrategy
+    log(&quot;${timestamp}Hi everyone! Let me introduce myself, I am $fullName, nice to meet you!&quot;)
+}
+</code></pre>
+<p>As do extension receivers, context receivers automatically propagate.</p>
+<pre><code class="language-kotlin">calss LoggingContext {
+    context(ConfigContext)
+    fun log(text: String) {
+        val timestamp = if(logTimestamps) now() + &quot; &quot; else &quot;&quot; // uses ConfigContext
+        log(&quot;${timestamp}$text&quot;)
+    }
+}
+
+context(NameStrategy,LoggingContext,ConfigContext)
+fun Person.introduceSelf() {
+    // uses LoggingContext and NameStrategy, automatically propagates ConfigContext
+    log(Hi everyone! Let me introduce myself, I am $fullName, nice to meet you!&quot;)
+}
+</code></pre>
+<p>That means bringing dependencies into scope happens very rarely. Ideally, you only do it once, in your main method. Reminds you of something? Exactly. This is what dependency injection frameworks do for you: They take an entry point, gather all the dependency declarations and wire everything together. Most prominently via constructor injection. Good news, contextual classes are part of the <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/context-receivers.md#contextual-classes-and-contextual-constructors">language design document</a> and even implemented already in the prototype. But I will now stop writing about this feature and how it might replace runtime dependency injection frameworks with static injection and instant compiler errors whenever your context misses a depdendency. Because first, people will claim overusage of the feature and second, I don't know how well that works in practice until I tried it myself. But this will surely happen and I will probably write about it then.</p>
+<p>Last but not least, my example from above would be bad code according to the <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/context-receivers.md#designing-context-types">official design document</a>. This is because it suggest that a bunch of contexts should be combined into bigger contexts. The example uses only interfaces as scopes, so that could be done easily by defining a subinterface. This problem and solution remind me a lot of regular function parameters and parameter objects. As long as the merged scope is a subtype of all the other contexts, scope propagation also works when only dependency to a sub context is declared, which is nice. Means you can write modules and group things, but depend on and inject only what's needed. Can't wait to try that.</p>
+<p>But the next post will first be about how context receivers made a library of mine better.</p>
+<p><em>P.S: No &quot;Scala had it before it was cool&quot; this time!!</em></p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
