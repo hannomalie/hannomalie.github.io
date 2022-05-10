@@ -1,0 +1,142 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/context-receivers-struktgen.html">Context Receivers in StruktGen</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2022-05-10</span>
+        <h1>Context Receivers in StruktGen</h1>
+        <p>I can finally remove some ugly syntax</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><h2>The StruktGen usecase</h2>
+<p>In my last post, I gave some short introduction to extensions and how context receivers could change the way we structure our code in Kotlin. Roughly a year ago, I wrote a small code generation library on top of KSP that lets you generate struct-like classes from interfaces on JVM, backing their memory with ByteBuffer instances. I am using this library mainly in my own render engine project to have efficient data transfer between cpu and gpu via direct buffers. In case you missed it, it's called <a href="https://github.com/hannomalie/StruktGen">StruktGen</a>.</p>
+<p>Without going too much into details, a strukt definition looks like this:</p>
+<pre><code class="language-kotlin">interface Nested: struktgen.api.Strukt {
+    var ByteBuffer.a: Int
+    val ByteBuffer.b: Int
+    companion object
+}
+</code></pre>
+<p>Every property is defined as member extension property of ByteBuffer. This is because of the use case of StruktGen: Generate objects that can be shared between the JVM and native code, like OpenGL in my case. There are not many options to implement such an interop, but ByteBuffers is (the?) one. But then, a ByteBuffer must be present whenever you do data access. So either a) everything is a function and you pass in a ByteBuffer as parameter, or b) you have a ByteBuffer as a member, or c) you build a fancy abstraction layer that destroys that strukts look and feel nearly the same as regular objects.</p>
+<h2>The problem</h2>
+<p>I went for d), which is abusing member extensions. It's abuse, because I clearly didn't want to model properties as a property on a ByteBuffer that is available when a strukt is in scope as a receiver. But it was nice enough at the call site, that I liked the approach nonetheless. But there was one other thing that became a bit ugly: nested structs.</p>
+<pre><code>interface Nested: Strukt {
+    var ByteBuffer.a: Int
+    companion object
+}
+interface FooStrukt: Strukt {
+    val ByteBuffer.d: Nested
+    companion object
+}
+
+val foo = FooStrukt()
+val buffer = ByteBuffer.allocate(FooStrukt.sizeInBytes)
+foo.run { // foo is now this
+    buffer.run { // buffer is now also in scope
+        // boom, compiler error, can't just do d.a because a is a property on ByteBuffer, not on d, an instance of Nested
+        assertThat(d.run { a }).isEqualTo(0) 
+    }
+}
+</code></pre>
+<h2>The solution: context receivers</h2>
+<p>With context receivers, I am able to actually model exactly what I wanted and get rid of the member extension abuse. Using the new language feature, the example from above is now written as</p>
+<pre><code class="language-kotlin">interface Nested: Strukt {
+    context(ByteBuffer) var a: Int
+    
+    companion object
+}
+interface FooStrukt: Strukt {
+    context(ByteBuffer) val d: Nested
+    
+    companion object
+}
+
+val foo = FooStrukt()
+val buffer = ByteBuffer.allocate(FooStrukt.sizeInBytes)
+buffer.run { // buffer is now also in scope
+    // boom, works as expected. You can now access d as a property of foo,
+    // a as a proeprty of d (an instance of Nested), while
+    // a buffer is present in the context
+    assertThat(foo.d.a).isEqualTo(0) 
+}
+</code></pre>
+<p>You can now use strukts and nested strukts just like any other property or object.</p>
+<h2>Bonus round: type aware allocations</h2>
+<p>I don't know whether I really need a language feature that fulfills every requiremend a type class imposes, but in StruktGen (or my rendering engine context), I would definitely love to have static constraints for a type. Would be nice to have something like C# <a href="https://docs.microsoft.com/en-us/dotnet/csharp/whats-new/tutorials/static-abstract-interface-methods">static abstract interface methods</a>.</p>
+<p>Since .NET implements this feature with runtime support (they extend the bytecode for that feature) and Kotlin is just a guest language on the JVM, I don't see that feature coming to Kotlin soon - or when it comes, it likely has to be a compile time thing. With context receivers however, my usecase can be modeled quite nicely without such a feature. Let's take a look at what I am talking about:</p>
+<p>Given structs only work when you provide backing storage in form of a ByteBuffer, you must first allocate it. This can be done with <code>ByteBuffer.allocateDirect(sizeInBytes)</code>. I then have a class <code>TypedBuffer&lt;T: Strukt&gt;</code> that wraps a raw buffer. In order to know how large your raw buffer needs to be, you need to pass an element size in bytes and an element count. Element count times element size in bytes is the size in bytes your buffer needs to have. The API currently looks like</p>
+<pre><code class="language-kotlin">val buffer: ByteBuffer = allocateDirectBuffer(FooStrukt.sizeInBytes * count) // pass in premultiplied size
+val buffer: ByteBuffer = allocateDirectBuffer(FooStrukt, count) // pass in FooStrukt type and element count
+val buffer: TypedBuffer&lt;T&gt; = allocateTypedBuffer(FooStrukt, count)  // pass in FooStrukt type and element count
+</code></pre>
+<p>and with context receivers it becomes</p>
+<pre><code class="language-kotlin">FooStrukt.run {
+    val buffer: ByteBuffer = allocateDirectBuffer(count) // pass in element count
+    val buffer: TypedBuffer&lt;T&gt; = allocateTypedBuffer(count)  // pass in element count
+}
+</code></pre>
+<p>On top of that, the allocation strategy can be thrown into the mix. Because it's not always a simple direct buffer I need to allocate - sometimes it is a buffer of a certain kind, that for example is automatically synchronized with the GPU.</p>
+<pre><code class="language-kotlin">context(StruktType&lt;T&gt;, Allocator)
+fun &lt;T: Strukt&gt; allocateTypedBuffer(elementCount: Int) = allocate(elementCount * sizeInBytes)
+
+with(PersistentMappedBufferAllocator, FooStrukt) {
+    val buffer: PersistentTypedBuffer&lt;T&gt; = allocateTypedBuffer(count)  // pass in element count
+}
+</code></pre>
+<p>In my rendering engine, the allocator would be part of the graphics backend - every graphics API could then implement its own allocator and whenever the backend is given as context, the allocator can automatically be used. Not that I have enough time to implement a second graphics backend, but in theory, I could do it that way :) I also might be a bit overeager with the allocation API, I will find that out.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
