@@ -1,5 +1,5 @@
 title=Persistent buffers for asynchronous texture uploads
-date=2023-01-19
+date=2023-01-28
 type=post
 tags=opengl
 status=published
