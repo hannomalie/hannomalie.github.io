@@ -113,7 +113,26 @@ fun BufferedImage.toByteBuffer(): ByteBuffer {
 
 and just upload mipmap after mipmap with the technique described above. This way, your cpu can take it's time
 to precaclulate the mipmaps asynchronously without blocking anything important, upload it with dma and use
-a small fraction of the gpu frame budget to actually set the texture data.
+a small fraction of the gpu frame budget to actually set the texture data, like:
+
+```kotlin
+fencedOnGpu { // This creates a fence and blocks until commands finished
+    buffer.bind() // the persistent buffer is bound, so that the following calls use it as a source
+    glCompressedTextureSubImage2D(
+        texture.id,
+        level,
+        0,
+        0,
+        width,
+        height,
+        info.internalFormat.glValue,
+        data.capacity(),
+        0 // now this is the offset into the pixel buffer object
+    )
+    // unbind the buffer, or further calls to textureSubImage2D will accidentally use it, global state, yay
+    buffer.unbind()
+}
+```
 
 In my case, I use a sizeable pool of pixel buffer objects and for each one a corresponding lock, in order to prevent
 parallel usage of the same buffer object by the cpu. It would be possible to use multiple differently sized backing
