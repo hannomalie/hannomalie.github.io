@@ -1,0 +1,186 @@
+title=Test with the real filesystem
+date=2024-04-01
+type=post
+tags=Testing
+status=published
+headline=Test with the real filesystem
+subheadline=Mock it only in exceptional cases
+summary=Some bad habits have been established, some myths can be falsified about testing with filesystems.
+~~~~~~
+The last post already motivated why we should move away from unit tests and do developer tests instead.
+One particularly interesting characteristic that is commonly demanded for those former unit tests is: "They don't
+do IO. When they do IO, they are interation tests" I was told too often in the past. And using filesystems is IO too.
+
+Let's dissect.
+
+So first of all, "not doing IO" is __not a goal__, not an intention. It's a __measure__ to fulfill one ore more intentions.
+We developers don't like being told _how_ to do things, we only want to know what goal should be achieved and find the best
+way ourselves, right?
+So let's talk about the _what_ first.
+
+The intentions behind the no-IO-rule are (based on countless discussions I had over the years and what I was able to read
+in a lot of sources touching the topic testing):
+
+1. __Isolation.__ This is ony of the most misunderstood criteria of tests, especially unit tests. Too many
+  people told me that a unit must be tested in isolation, therefore, all dependencies must be exchanged 
+  with test doubles. The truth is, isolation should be achieved for the test, not the unit. The test should run
+  in isolation, so that tests can run in parallel. They can't, if they use shared mutable state. They would interfere.
+  So the goal is: __Tests should not interfere with each other.__
+2. __Speed.__ The faster tests are, the better. I know, deep. So the goal is: __Tests should be fast.__
+3. __Independent.__ A test should only depend on a single thing, should have only __one reason to fail__.
+4. __Repeatable.__ A test should have the same result, every time, should not rely on any uncontrollable parameter.
+
+
+And now let's elaborate, step after step.
+
+1. __Isolation__ is completely unrelated to filesystem usage, as long as we ensure that no test uses another tests' 
+  files. That's perfectly possible. The only thing that's needed is a configurable file path as a base folder for the
+  functionality of your main code that uses the filesystem. I never encountered any case, where that's not possible,
+  so I will just pretend it does happen extremely rarely. And if it does, in your own code, it's probably easily
+  adjustable, right? Having that said, decent test frameworks let you use real temp folders effortlessly, for example
+  in JUnit 5, you can just make up a test function parameter, add @TempDir on it and done, 
+  look [here](https://junit.org/junit5/docs/5.9.1/api/org.junit.jupiter.api/org/junit/jupiter/api/io/TempDir.html).
+  I am sure other platforms worth using provide similar functionality.
+2. __Speed.__ First of all: What expectations towards speed of a test do you have? And *why* do you have them. Is there
+  any real reason, any benefit for you in fast tests? Does it matter whether its 2 or 20 ms? Have you ever _really_ thought
+  about what it costs you when you introduce mocks and whether those are worth the speed gains? Have you ever measured
+  whether they're faster at all?
+  I have bad news. I implemented a simple test that lists 10 files in a given directory (in kotlin).
+  *12 ms on a real filesystem, 61ms with a virtual filesystem (Jimfs) and a whopping 740ms when mocking it (mockk).*
+  Of course, there might be other libraries, other programming languages etc giving different results, but my point
+  is: People are way too convinced that mocking the fs will be faster. But maybe it isn't at all or not by any
+  meaningful margin.
+3. __Independence__ is an interesting one. Running code depends on so many things. You could run out of main
+  memory, you can have bit flips because of lunatic radiation, an agent could prevent you from calling
+  certain methods, yet no one would seriously talk about that when asking why a test fails, right?
+  So depending only on one thing and failing for one (relevant, identifiable?) reason is not the same thing.
+  When your code uses the filesystem, the dependency to that filesystem is just simply there. It doesn't
+  vanish because you want it to. And only because the filesystem interface implementation hides possible
+  failures by using exceptions that are not part of its function signatures, doesn't mean your code doesn't
+  need to handle it. Handle it, propagate it properly and the failure will be easily identifiable when it happens.
+  Furthermore, an error is just like any other part of the context: Properly setup, your tests don't need to worry,
+  because it never happens. What are those failures we are talking about? No space left on device?
+  Use temp files and clean up and you'll be fine, those 10Mb disk space won't make you poor. No permissions to write?
+  Let your test process create the folder and you are fine. Those theoretical issues you could have with the filesystem
+  are 99% of the time just that: theoretical. Used to win an argument. Let's be better than that and only use those
+  arguments if they are *actually* relevant for our context and we can afford them.
+4. __Repeatability__ is also interesting. What exactly is not repeatable when using a filesystem? The potential
+  errors we discussed in point 3? The exact timestamps of files? Whatever is not exactly repeatable when using
+  a filesystem, is simply irrelevant for testing. That doesn't mean that you shouldn't use mocking when you can't
+  reproduce certain states in other ways, like specific timestamps or so. It's appropriate then.
+
+
+So none of the given goals imply that faking the filesystem is necessary.
+
+Over to another interesting topic. What about the other criteria that make for a good test? What about the costs
+of faking the filesystem just to be "better" at the above points?
+
+1. __Library dependency__. The virtual filesystem I used for the benchmarking above came with some additional drawbacks, for example it doesn't
+  play well anymore with kotlin's extensions on the JDK file types and compiles, only to throw some
+  UnsupportedOperation exceptions at runtime. A problem that you will never ever have with the real file api. But problems
+  you will likely have with other libraries and language ecosystems that are probably even less mature then Java and the JVM.
+  At least you will need a decent mocking library most times, but granted, it might be already an existing dependency, so no big deal.
+  Other than that, simply a cost to consider.
+2. __Test induced damage__. When the aspects in the previous point ruled out retroactive mocking of the filesystem,
+  you need to change your code design, maybe add some indirection interfaces, change from official filesystem types to
+  some adapter types etc. Those inflicted changes are drawbacks, costs, that you need to consider.
+3. __Tests as documentation__ is one of the first things that goes downhill when mocking is introduced. Not necessarily the biggest
+  deal, because it could also be written in better ways, but undoubtly the normal std api surfaces are better readable.
+  Ever mocked a file system state that involves folders, so multiple levels? So much fun to read that code from others. Not.
+4. __Wrong implementations__ can sneak into your code base, giving you false confidence. Happens when your mocks don't
+  reflect the real implementation. Is simply a risk to consider.
+5. __Accidental coupling__ is created between your mocks and the implementation of the filesystem. This might not be too
+  relevant, because a) it's always the case when you mock and you might not see it as accidental and b) because
+  filesystem apis are pretty stable most times. Depending on the complexity of the filesystem however, the coupling
+  could again become more problematic.
+
+Regarding those aspects, let's take a look at how tests potentially look like and what we can learn from it.
+
+The mock test is "fantastic", look at it:
+
+```kotlin
+@Test
+fun listTenFiles() {
+    val topLevelFolder = mockk<File> {
+        every { list() } returns arrayOf(
+            "0.txt",
+            "1.txt",
+            "2.txt",
+            "3.txt",
+            "4.txt",
+            "5.txt",
+            "6.txt",
+            "7.txt",
+            "8.txt",
+            "9.txt",
+        )
+    }
+    assertThat(
+        topLevelFolder.list().toList()
+    ).containsExactlyInAnyOrder(
+        "0.txt",
+        "1.txt",
+        "2.txt",
+        "3.txt",
+        "4.txt",
+        "5.txt",
+        "6.txt",
+        "7.txt",
+        "8.txt",
+        "9.txt",
+    )
+}
+```
+
+So many subtleties here. Do you smell the self-fulfilling prophecy here? This test is not worth a dime anymore,
+it doesn't use any real implementations anymore. Furthermore, I implemented it as the first test and guess what,
+of course instead of returning the file names, I returned the fullpaths and asserted for exactly that, only to
+find out that it was wrong when I implemented the test with the real filesystem. Or the "in any order" part.
+Sure, if you're using file api daily you might remember that list() doesn't guarantee any order. But the more
+common situation will be, that someone doesn't know or remember it and will add a very nasty bug with that in your code
+that you will curse over some day. Keep in mind that I left out the class using the code for brevity here.
+
+Question your beliefs about performance and keep in mind what might be more relevant: Confidence in your test by
+using the real implementation and simplicity.
+
+The test against real filesystem looks like this:
+
+```
+@Test
+fun listTenFiles(@TempDir tempDir: File) {
+    val topLevelFolder = tempDir.resolve("toplevelfolder").apply {
+        mkdirs()
+    }
+    repeat(10) {
+        Assertions.assertTrue(
+            topLevelFolder.resolve("$it.txt").createNewFile()
+        )
+    }
+
+    assertThat(
+        topLevelFolder.list().toList()
+    ).containsExactlyInAnyOrder(
+        "0.txt",
+        "1.txt",
+        "2.txt",
+        "3.txt",
+        "4.txt",
+        "5.txt",
+        "6.txt",
+        "7.txt",
+        "8.txt",
+        "9.txt",
+    )
+}
+```
+Which is just the most simple code you could write and anyone who is not completely new to the used language will not
+have any problems understanding it (allthough in the given case the mock version also doesn't look to magical, which is not
+my normal of those tests).
+
+## Closing words
+
+I recommend **using the real filesystem by default**, ditch the term unit test and accept that it's okay for a developer
+test to use the real filesystem. Not only ok, but simply better except for very rare cases.
+
+Those cases could be the need to handle insanely large files, specific metadata, simulation of failures or verifications
+that the filesystem is not touched by another piece of code.
