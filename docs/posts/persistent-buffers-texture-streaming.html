@@ -29,7 +29,8 @@
         <h1>Persistent buffers for asynchronous texture uploads</h1>
         <p></p>
     </header>
-            <p><p>It's been a while since I learned about persistent mapped gpu buffers and how they can be used to make multithreaded game engines and I wrote about it <a href="/posts/2017-18-14-multithreaded-game-engines.html">here</a>. Lately, I wanted to reactivate - or rather properly implement - texture streaming in my custom game/rendering engine, because inefficient and unresponsive resource loading bothers me a lot when toying around.</p>
+        <div class="image main"><img src="../images/bricks_parallax.jpg" alt="" /></div>
+        <p><p>It's been a while since I learned about persistent mapped gpu buffers and how they can be used to make multithreaded game engines and I wrote about it <a href="/posts/2017-18-14-multithreaded-game-engines.html">here</a>. Lately, I wanted to reactivate - or rather properly implement - texture streaming in my custom game/rendering engine, because inefficient and unresponsive resource loading bothers me a lot when toying around.</p>
 <p>So there is this idea to use an OpenGL unpack buffer that is set up with GL_MAP_PERSISTENT_BIT and GL_MAP_COHERENT_BIT (actually <em>or</em> :P), which frees us from ever mapping it and which makes writes to the buffer done by the CPU immediately visible to the gpu.</p>
 <p>When the upload is finished, we can just bind the unpack buffer and call <code>glCompressedTextureSubImage2D</code> or <code>glTextureSubImage2D</code> and pass the target texture ids as first parameter - so there's no need to bind the texture with the new apis. Binding an unpack buffer will make the two subImage calls use the buffer as a source for the texture data. Since the data was already uploaded, the call should be really fast. And indeed, the calls I measured (with a proper signal of course) took about 0.003ms, no matter what texture size was copied:</p>
 <p>result ms: 0.002048</p>

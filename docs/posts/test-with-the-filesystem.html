@@ -29,7 +29,8 @@
         <h1>Test with the real filesystem</h1>
         <p>Mock it only in exceptional cases</p>
     </header>
-            <p><p>The last post already motivated why we should move away from unit tests and do developer tests instead. One particularly interesting characteristic that is commonly demanded for those former unit tests is: &quot;They don't do IO. When they do IO, they are interation tests&quot; I was told too often in the past. And using filesystems is IO too.</p>
+        <div class="image main"><img src="../images/filesystem_is_fine_for_test.jpeg" alt="" /></div>
+        <p><p>The last post already motivated why we should move away from unit tests and do developer tests instead. One particularly interesting characteristic that is commonly demanded for those former unit tests is: &quot;They don't do IO. When they do IO, they are interation tests&quot; I was told too often in the past. And using filesystems is IO too.</p>
 <p>Let's dissect.</p>
 <p>So first of all, &quot;not doing IO&quot; is <strong>not a goal</strong>, not an intention. It's a <strong>measure</strong> to fulfill one ore more intentions. We developers don't like being told <em>how</em> to do things, we only want to know what goal should be achieved and find the best way ourselves, right? So let's talk about the <em>what</em> first.</p>
 <p>The intentions behind the no-IO-rule are (based on countless discussions I had over the years and what I was able to read in a lot of sources touching the topic testing):</p>
