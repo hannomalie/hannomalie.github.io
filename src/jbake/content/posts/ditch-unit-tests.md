@@ -6,6 +6,7 @@ status=published
 headline=Ditch unit tests
 subheadline=Do developer tests
 summary=Unit tests are outdated. Developer tests replace them.
+image=images/unit_tests_developer_tests.jpg
 ~~~~~~
 ## Motivation
 

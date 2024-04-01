@@ -5,6 +5,7 @@ tags=opengl
 status=published
 headline=Persistent buffers for asynchronous texture uploads
 summary=Persistent buffers and manual synchronization can be used to asynchronously upload texture data without doing expensive calls to the graphics api.
+image=images/bricks_parallax.jpg
 ~~~~~~
 It's been a while since I learned about persistent mapped gpu buffers and how they can be used to make multithreaded
 game engines and I wrote about it [here](/posts/2017-18-14-multithreaded-game-engines.html). Lately, I wanted to

@@ -6,6 +6,7 @@ status=published
 headline=Test with the real filesystem
 subheadline=Mock it only in exceptional cases
 summary=Some bad habits have been established, some myths can be falsified about testing with filesystems.
+image=images/filesystem_is_fine_for_test.jpeg
 ~~~~~~
 The last post already motivated why we should move away from unit tests and do developer tests instead.
 One particularly interesting characteristic that is commonly demanded for those former unit tests is: "They don't
