@@ -1,0 +1,160 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/test-with-the-database.html">Persistence in Testing</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2024-04-02</span>
+        <h1>Persistence in Testing</h1>
+        <p>and how you can deal with it nicely.</p>
+    </header>
+        <div class="image main"><img src="../images/in-memory-repo-testcontainers.jpg" alt="" /></div>
+        <p><h2>The problem</h2>
+<p>When you either know me a bit or when you read my previous posts, you might get the impression that I prefer testing with real dependencies. God damn right. And persistence makes no difference.</p>
+<p>But on the other hand, I was part of many teams that severely struggled dealing with persistence when it comes to testing. The proper mindset and suitable tooling will work wonders for your tests. On the JVM, the tooling is already right there. Other platforms might need to catch up first. For example in the nodejs projects I worked, I experienced at least two bigger issues: The testcontainers for nodejs library was buggy and the test frameworks didn't offer good enough extension points to implement painlessly what is needed. Well, what can I say. Switch to the JVM or some comparable ecosystem if you want good things :shrug:. Jk.</p>
+<p>Whether it's a repository class, an interface, a database client, a wrapper for a database client, a http facade for a database, one way to deal with it is always found quickly: <strong>mocking</strong>. There's next to no requirements to be able to switch out a persistence layer by some cheap mocks. Despite in some few cases no big deal, mocking is not a versatile solution:</p>
+<ul>
+<li>Mocks are a special form of test doubles, they should be used for verification, but often they aren't. They should often rather be stubs or fakes.</li>
+<li>Mocking is always done with a framework, the mock definitions are often quite cryptic and span multiple lines of code. This blows up test code and prevents tests from being like a readable documentation.</li>
+<li>Mocks that go further then the most simple cases get very hard to read quickly.</li>
+<li>Mocks never implement the contract of whatever they mock, by definition. This is simply a risk, because your code uses sth. that's not compliant to whatever the real thing is. And the test needs to be adapted for that, even if often this is not obvious (I have an example at the bottom).</li>
+<li>Classic mocking is ad-hoc, declared as near as possible to the usage site, so often in the test method itself. Theoretically, one can abstract one's mocks and make them reusable, but that's often an approach that surprises people and I experienced that it's seen as inappropriate, no good style. So the same mocking is repeated in many spots. It's simply duplicated code. We don't need to make a big deal out of it, but just being used to something doesn't meake it good in particular.</li>
+</ul>
+<h2>The solution</h2>
+<p>Read my previous post about testing with the real filesystem for further details. The reasons people replace real dependencies can often be invalidated quite easily. For persistence, the primary reason people don't use the real database is either because they never heard about testcontainers and how easy it is use a docker container in arbitrary scopes or because they think the stuff is too slow (or they use a mid tech stack, like mentioned in the intro...).</p>
+<p>I created a repository at <a href="https://github.com/hannomalie/testing-with-repositories">https://github.com/hannomalie/testing-with-repositories</a> to showcase how little there is to those arguments, how easy and fast it is to use some tiny abstractions or the real dependencies in tests.</p>
+<h3>In-memory implementation</h3>
+<p>This is really a too fancy name for a really dumb implementation. Implement your repository interface and back it by a simple data structure.</p>
+<pre><code class="language-kotlin">class InMemoryNoteRepository implements NoteRepository {
+    private final ArrayList&lt;Note&gt; notes = new ArrayList&lt;&gt;();
+    
+    @Override
+    public Optional&lt;Note&gt; find(Integer id) {
+        return notes.stream().filter(it -&gt; it.id() == id).findFirst();
+    }
+
+    @Override
+    public void add(Note note) {
+        notes.add(note);
+    }
+
+    @Override
+    public List&lt;Note&gt; getAll() {
+        return new ArrayList&lt;&gt;(notes);
+    }
+
+    @Override
+    public void addAll(Note... notes) {
+        Arrays.stream(notes).forEach(this::add);
+    }
+}
+</code></pre>
+<p>The important thing: Make it a proper implementation, that doesn't only implement the interface, but also fulfills all other elements of the contract of the repository. Those are usually quite implicit and oftentimes just a bunch of &quot;obvious&quot; things. For exmaple when you add something to the repo, it should be able to retrieved afterwards. Make that a test and test the in-memory, as well as the proper implementation. It's doable with close to no effort, take a look at <a href="https://github.com/hannomalie/testing-with-repositories/blob/master/src/test/java/RepositoryTest.java">this example</a>, how concise it can be:</p>
+<pre><code class="language-java">@TestFactory
+List&lt;DynamicTest&gt; absentNoteCanTBeRetrieved(
+    InMemoryNoteRepository inMemoryNoteRepository,
+    PostgresNoteRepository postgresNoteRepository
+) {
+    return Stream.of(inMemoryNoteRepository, postgresNoteRepository).map(repository -&gt; {
+            repository.add(new Note(5, &quot;asd&quot;));
+            return dynamicTest(repository.getClass().getSimpleName(), () -&gt; {
+                assertThat(repository.find(4)).isEmpty();
+            });
+        }
+    ).toList();
+}
+</code></pre>
+<p>Believe it or not, now you have a fully compliant implementation. That means you can freely use it in all of your tests, prevent all the issues you get when mocking and have all the benefits that make a good test: speed, test reads like a documentation, you don't have to create ad-hoc implementations, you don't create coupling between tests and implementation and so on. Additionally, you can use this implementation for local development, bootstrapping your application will be a breeze, enabling usecases like fast prototyping, enables your testers to start a stack easily and so on.</p>
+<h3>Usage in tests</h3>
+<p>I don't really need to show you the &quot;real&quot; implementation, you know how that looks because you have that stuff yourself.</p>
+<p>In my example code repo, I deliberately chose to not use Spring. Spring might be a fantastic solution for multiple reasons, but it's also quite implicit, hiding a lot of things behind dependencies and default configuraitons. That's not helpful to show simplicity from my pov. So I went closer to the bare minimum of a solution I would consider production ready: Javalin, JDBI, Hikari (Connection pooling...), a Repository interface and Postgres.</p>
+<p>A test can look as simple as this:</p>
+<pre><code class="language-java">@ExtendWith(NoteRepositoryExtension.class)
+public class ApplicationTest {
+
+    @Test
+    void existingNoteIsFound(PostgresNoteRepository repository) {
+        repository.addAll(new Note(0, &quot;asd&quot;), new Note(1, &quot;ftz&quot;), new Note(2, &quot;jek&quot;));
+
+        JavalinTest.test(createApp(repository), (server, client) -&gt; {
+            assertThat(client.get(&quot;/notes/2&quot;).code()).isEqualTo(200);
+        });
+    }
+}    
+</code></pre>
+<p>Note, that I am actually creating an instance of the whole Javalin application and test it with an http client by calling routes.</p>
+<p>The PostgresNoteRepository is the implementation of a repository interface that uses a real datasource, JDBI as a simple mapper between the persistence and the data classes. When you normally use testcontainers to start your real postgres database, it would look similar to sth like <a href="https://testcontainers.com/guides/getting-started-with-testcontainers-for-java/">this</a>. That can be sufficient, but is a bit unergonomic. One probably wants to have it a bit less boilerplatey, a bit smoother. In Kotlin, there are some helpful language constructs like lambdas with receivers to help you write some tiny DSL to make it a bit nicer. It's possible in Java as well, but on the other hand JUnit has also some nice spots to implement what we need. So I went for a JUnit extension that is an implementation of an afterEach handler and a parameter resolver. The implementation is quite simple, could be even simpler (container shutdown could be left over for testcontainers, container start could be in parameter resolve function) and took me not even half an hour to implement. Take a look at the class <a href="https://github.com/hannomalie/testing-with-repositories/blob/master/src/test/java/NoteRepositoryExtension.java">here</a>.</p>
+<p>You might have spotted another detail. There is a configuration parameter &quot;preferInMemory&quot; in the extension. In case your test only requires the interface type of the repository, which implementation should be passed in? The in-memory one? The real one? The point is, it depends on what you want to achieve. When it's really important for developers to have tests as fast as possible, because they need it for their workflow (do they really?), make in-memory the default that gets passed in. In your CI pipeline, you could use the real ones for all scenario tests. Or only on the main branch, not on your feature branch pipelines, it's really up to everyone and their requirements and needs. I just wanted to show how easy it is to create a mechanism that helps achieving any of those usecases.</p>
+<h3>Speed</h3>
+<p>Not much to add after the previous chapter. The &quot;ApplicationTest&quot; test file contains all the different scenarios you could be interested in: Inject the interface, inject the real implementation, inject the in-memory variant.</p>
+<p>Here are some test results:</p>
+<p><img src="../images/repository_tests.png" alt="Test Results" /></p>
+<p>I have to admit, I don't know why that one test takes 2s, but I suspect it has sth to do with the code in that test. Nonetheless, look how all those tests don't even run 4 seconds. They're not yet using parallel execution and they are using a bunch of real databases. Adding some &quot;slow&quot; tags to your tests and using the configuration flag mentioned above, there could barely be any reason to complain about the approach. What's additionally quite interesting though is: You see the &quot;existingNoteIsFound&quot; test without any parameters? It's using mocks. It's using mockito, which looks like this:</p>
+<pre><code class="language-java">@Test
+void existingNoteIsFound() {
+    var repository = mock(NoteRepository.class);
+    when(repository.find(2)).thenReturn(Optional.of(new Note(2, &quot;jek&quot;)));
+
+    JavalinTest.test(createApp(repository), (server, client) -&gt; {
+        assertThat(client.get(&quot;/notes/2&quot;).code()).isEqualTo(200);
+    });
+}
+</code></pre>
+<p>I know, everyone is tired of me complaining about mocking, but three things need to be stated. 1: Performance wise, they are unexpectedly expensive. And no, it's not coincidence, I ran that stuff multiple times. 2: It's easy to overlook that I created coupling between implementation and test. The test assumes that the application calls the find method on the repository. Sure, it would be dumb to call getAll() and then filter the results, but the issue in general gets clear and it is very well relevant in real projects with real implementations. 3: It's already slightly less readable than the alternatives and the test needs to be careful to not rely on the contract of our repositories. For example the house of cards would already collapse when your test wants to call <code>.post(&quot;/notes&quot;)</code> in its scenario.</p>
+<h3>Closing words</h3>
+<p>It doesn't cost you much to ramp up your testing game by a lot. Starting with in-memory implementations, followed by using testcontainers, finalized by a small test framework extension. Combine it with a web framework that doesn't impose any structure of tests (like Spring does, for example) and use a simple approach to persistence in general (like JDBI) and your code becomes lean, fast and pretty. Much like I motivated in an <a href="https://hannomalie.github.io/posts/ditch-unit-tests.html">earlier blog post</a>, there is less and less reason to think about whether a test is a unit test or not when it uses a repository, which helps focusing just on what one actually wants to test.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
