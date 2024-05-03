@@ -1,8 +1,8 @@
 title=The DDD controversy
-date=2024-04-23
+date=2024-05-03
 type=post
 tags=workflow,architecture,design
-status=draft
+status=published
 headline=The DDD controversy
 summary=Domain driven design is as old as some programmer's beards, yet recently it gained some unexpected attention. And hate. I explain my perspective and how we can stay healthy with that topic.
 image=images/post-it.png
@@ -74,7 +74,7 @@ have those discussions between your people. Decide for yourself whether they are
 
 ## NEUTRAL: DDD is an opinionated structure
 Unstructured communication might be bad. But what about structures that doesn't fit you? What if you have developers that
-are quite capable to have conversations with stateholders, get some nice requirements out of them, work in a collaborative
+are quite capable to have conversations with stakeholders, get some nice requirements out of them, work in a collaborative
 and iterative way and do successful projects that way?
 
 ## PRO: Ubiquitous language between different people
@@ -91,7 +91,7 @@ increases their holistic understanding of their company, their domains, their pr
 It will create or foster their end-to-end responsibility.
 
 ## CON: Not all parts of DDD are equal
-There is (ususally) Event Storming, Domain Modeling, Context Mapping, Strategic Design, Strategic Design,
+There is (ususally) Event Storming, Domain Modeling, Context Mapping, Strategic Design,
 Tactical Design and probably some more things I forgot. I can see great value in some, great harm in the other elements.
 And I think applying the bad ones leads to what all those anti-DDDlers rightfully hate.
 
@@ -113,7 +113,7 @@ should get those business related insights elsewhere.
 The struggle begins. Let's start with __strategic design__, or for some people easier to grasp: bounded contexts.
 Those are parts of a domain where you agree to have a ubiquitous language.
 You can have multiple ones in one domain, yet if a bounded context spans multiple domains, you usually have a design
-issue which you should solve. Finding out what you bounded contexts are, is not that easy anymore. It would have been
+issue which you should solve. Finding out what your bounded contexts are, is not that easy anymore. It would have been
 very easy when there would always just be a 1:1 relationship between bounded context and subdomain or that those two are
 the same. That's however not possible, because DDD says that domains are the "problem space" and "bounded contexts" are
 the "solution space". Even though I spoke to other engineers who share my opinion, I will just speak for myself:
@@ -207,9 +207,43 @@ and evolve it together instead of have it loosely coupled, because the cost of l
 by default and makes our work harder than it needs to be.
 Whoever is on the level of applying hexagonal architecture by default, forgot how to be reasonable.
 
+## A bonus perspective - from DDD to BPMN
+
+Recently, I asked an architect colleague of mine for some takes on the topic. He's in a quite large project
+that moved from DDD to BPMN. I can't give any info on the reasons for the transition - of course I came to think
+that some of my points mentioned above might be relevant for it. Otoh what I _can_ state is a few other things.
+
+- The transition of a project landscape away from DDD seems to be difficult. Everyone keeps using the DDD language.
+People seem quite resistant to unlearn it. I guess that's a natural thing for every language, so not 
+too big of a surprise. Where's a ramp-up, there's a ramp-down I guess. In this context, it doesn't help
+with clarity and frictionless communication though.
+- The code of some old contexts is very complicated and difficult to understand. It's explicitly the DDD concepts that make it
+so. The point I understood is, that the code is more complicated than it needs to be. Which - so I guess - is
+exactly what I wrote above about the tactical design and default architecture choices.
+- The proejcts also use Event Sourcing and Hexagonal architecture. Both tools are applied poorly and introduce significant
+complexity. It's especially difficult for junior developers to really understand the benefits of those tools, yet
+in the project(s) are plenty of junior developers. Note, that even though some more-senior-like developers left the project over the years,
+there was never big fluctuation. Now I gave people the best opportunity to argue "yes, applied poorly, that's the isuee!".
+Two points: First, if it's incredibly easy to apply those tools poorly, maybe it's a problem with the tool then. _Skill issue_
+is an annoying answer for an ofter complex problem involving people and tech. Second, I am not necessarily convinced
+that those were really applied poorly. I think it's possible for my colleague that it just _looks_ like that, while
+in reality it was applied just fine, but the reasoning to use it was not there at all, so it doesn't make
+sense one or the other way around. That a lot of long time developers on the project are neither sufficiently familiar with the 
+concepts of event sourcing and hex arch (and microservices), is just another hint, that those things are default choices,
+made without asking a lot whether they are reasonable or not. Note that there might be other reasons for that, though.
+- BPMN seems to be a much leaner approach and is so far positive for him. BPMN stays on the level of POs and architects.
+So the developers don't need to get involved into that stuff and despite, they are able to work
+with the artifacts quite well. Thinking in processes and steps is a good model for their domains. Those two points
+again prove my view: Simply thinking in good old processes is just much easier for everyone. And having that business stuff
+modeled in a simpler language, in a leaner way and with less people and roles involved, also just works better and will
+be less intrusive for the resulting code. He's satisfied with the code developers create with that workflow.
+
+It's always interesting to hear perspectives from different people, in different projects, with different experience.
+Maybe in the future I will get to know more people and be part of more projects where I see better fit for DDD.
+
 ## Conclusion
 
 So there you have it. Useless perspective number 834753674859 on the topic. At least __I__ today understand why DDD
-is seen extremely controversial by a lot of people. It should be. I doubt I will ever be part of a project
+is seen extremely controversial by a lot of people. Or certain architectures. It should be. I doubt I will ever be part of a project
 where the domain is of such a different kind that I agree with the upfront design and abstraction effort DDD introduces.
 But if I will, and I will be happy to regret what I wrote here and correct my course. But let's see that first.
