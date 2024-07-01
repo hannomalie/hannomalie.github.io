@@ -1,8 +1,8 @@
 title=Test at your boundaries!
-date=2024-06-03
+date=2024-07-01
 type=post
 tags=testing
-status=draft
+status=published
 headline=Test at your boundaries
 subheadline=And push the boundaries out as far as you can
 summary=I will motivate why you should always define the boundaries of your system as small and as far out as possible and why you should only test them, instead of the rest of your system.
@@ -343,6 +343,7 @@ So first of all let's again ask the question _why_: When you restrict ownership 
 a single repository, it's because of your communication structures in your company. I don't like the idea of gatekeeping at all, but
 when there is not infinite trust and different values and processes across teams in a company, it seems to be a reasonable take for
 everyone to accept those boundaries and then they need to be reflected in the code and enforced, as that's the architecture.
+This is a responsibility boundary, that overrules technical boundaries. 
 Note how such a boundary immediately makes parts of the code rigid, so that you need to introduce complexity that wouldn't
 be necessary otherwise.
 The actual boundary is the modules' api code, which is visible to other teams. It's chosen to be rigid, because
