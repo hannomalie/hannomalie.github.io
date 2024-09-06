@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/on-clean-architecture-part-1.html">On Clean Architecture (Part 1)</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2024-09-06</span>
+        <h1>On Clean Architecture (Part 1)</h1>
+        <p>On &quot;The advice to keep options open&quot;</p>
+    </header>
+        <div class="image main"><img src="../images/soap.jpeg" alt="" /></div>
+        <p><h2>TLDR</h2>
+<ul>
+<li>Clean Architecture is quite a good read and contains a lot of good stuff to think about</li>
+<li>I don't agree that seperating the policy of a system is a good idea in most projects</li>
+<li>People don't care about policy - but about behaviour of a system. That's more important from my pov</li>
+<li>I consider pretending existing decisions in the company don't exist as a bland mistake</li>
+<li>I see preparing code to change the major application framework as a waste of resources, needlessly overcomplicating the project</li>
+<li>Sticking to what the rest of the company or division does beats snowflaking and growing tool zoo</li>
+<li>Don't abstract over something until you don't at least know a few concretions of it</li>
+</ul>
+<h2>Clean architecture and Bob Martin under fire</h2>
+<p>For people that are rightfully avoiding the internet and drama around all the things, my short summary: Clean Architecture was a foundational opus for around 2 decades. I've seen so many software projects written with the stuff from that book in mind. Yet, in the recent years, not only the ideas behind Clean Architecture got questioned more and more, even the integrity, qualification or trustworthyness of the author (Bob Martin) gets attacked nowadays. The latter one is probably a consequence of the former one.</p>
+<p>As always, the way most people critisize is probably too harsh or even unfair and unprofessional. However, there are some takes that are quite reasonable and justified. Like the ones from Casey Muratori with &quot;Clean Code, Horrible Performance&quot; or Dan North's &quot;CUPID principles&quot;, allthough even those takes are a bit salty, let's not be too sensible here.</p>
+<p>While I sympathize with almost all of the takes from both sides, I can't lie: Yes, I also experienced the majority or projects that applied Clean Architecture as overengineered. I didn't enjoy working on most of them until they were changed quite a lot - often exactly by removing whatever Clean Architecture ideas were applied.</p>
+<p>So I wanted to find out why that is and gave the book a reread. And I was somehow surprised. Not only is the book really nice to read. It's concise, contains tales as examples, some history. It's thoughtfully written. It almost never deals in absolutes, emphasizes the pros and cons of ideas. For almost every point in the book I though &quot;Oh yes, that makes sense&quot;. So what actually is the issue!?</p>
+<p>I can only pick a few spots form the book and try to find out why they might be the reason we have that controversy now, or what applied ideas led to unenjoyable projects for me.</p>
+<p>Since I can't get anything big done in my limited time, I will always pick only a single random piece from the book and do multiple posts over time. Hopefully. And we start with:</p>
+<h2>The advice of &quot;Keeping options open&quot;</h2>
+<p>In chapter 15 there is a paragraph that I don't want to quote completely, but some parts:</p>
+<blockquote>
+<p>All software systems can be decomposed into [...] policy and details. The policy is where the true value of the system lives. [...] The goal of an architect is to create a shape for the system that recognizes policy as the most essential element of the system while making the details irrelevant to that policy. This allows decisions about those details to be delayed and deferred.</p>
+</blockquote>
+<p>Then come a lot of reasons why it should be that way. The thing is, this whole point of view does only make sense when one accepts the arguments prior to that chapter, the prerequisites. Why is the policy where the true value of the system lives? Nobody really cares about the policy, people care about the behaviour of a system, not it's policy. When you work at a company that does microservices and has one or two frameworks typically used for all their services, then <strong>yes</strong>, it <strong>is</strong> necessary to adopt exactly those two things: HTTP apis and for example Spring with Java. The &quot;business rules&quot;, often times very simple compared to whatever tech stuff you need to write a service, are not that important that it trumps choice of framework or programming language. So arguing that a specific, pure encoding of the business rules is the most valuable thing for a company is not meaningful, or at least not in all cases - I would even say close to never in the projects I worked on.</p>
+<p>What baffles me is, that the chapter even handles that exact point, I cite again:</p>
+<blockquote>
+<p>What if your company has made a committment to a certain database, web server, or a certain framework? A good architect pretends that the decision has not been made, and shapes the system such that those decision can still be deferred or changed for as long as possible.</p>
+</blockquote>
+<p>It baffles me, because this is such a bad advice! How can the decision which framework is used be done already at company level, yet we pretend it's not done? Why should we write our code in a way that is flexible to use another framework, yet this is almost certainly not needed? The flexibility and that decoupling comes at a significant cost that we will never get repaid, because we never change the framework. And even <strong>if</strong> that decision is questioned many years in the future somewhen - our code can then <em>still</em> be changed to that changing the framework is possible. Yes, it will be a bit more effort, but it's better to not pay high upfront cost (useless abstraction) for something that never happens, than to pay somewhat higher cost when it <em>actually</em> becomes necessary.</p>
+<p>The same argument gets even more clear when we talk about databases. Who ever changes databases? And even <em>if</em>, the change is made between two somewhwat similar database systems. Yes, sure, you can have the snowflake counter examples from the 2000s, but nowadays we have postgres. I have done both: Just as an experiment changed the web framework and also changed the database, without preparing anything for that. It's not as difficult as people claim it will be, not nowadays.</p>
+<p>Otoh when some snowflake engineer picks the file system as a database, while the rest of the company uses managed postgres, then he imposes significant risk and effort onto the company. The advice in the book is simply not sensible advice. There might be reasons to write some very simply repository abstraction (read my post <a href="https://hannomalie.github.io/posts/test-with-the-database.html">https://hannomalie.github.io/posts/test-with-the-database.html</a>) but that's about it. And when you dogmatically keep even JPA annotations out of your so called &quot;business rules&quot; for the sake of it, then you will create exactly the unnecessary complexity that all our architecture and design attemps were originally trying to solve.</p>
+<h2>The advice of &quot;Keeping options open&quot;, again</h2>
+<p>In the last paragraph, I basically argumented for <strong>YAGNI</strong> - You ain't gonna need it. Don't introduce an abstraction that you won't need. A close friend to that is doing the <em>wrong</em> abstraction, letting alone the idea that every abstraction is leaky.</p>
+<p>Have you ever been on a project where people desinged an abstraction for which they didn't know the usecases? I mean where not at least a single one - better two - usecases where on the table and the design was at benchmarked and validated against those two usecases? Then you probably know what I am after. How can you anticipate what your design needs to look like when you don't have the usages yet? In all those &quot;business rules first&quot; projects you have a form of that problem:</p>
+<p>People design their abstractions because they insist thay don't need to know how the persistence is actually implemented, just that whatever implements it fulfills some interface (the language construct). But what the persistence really needs to do is fulfill a <em>contract</em> that can't be reliably encoded with any programming language I know of (take a look at <a href="https://hannomalie.github.io/posts/test-with-the-database.html">https://hannomalie.github.io/posts/test-with-the-database.html</a> to see a glimpse of what I mean). So when you take a relational database, you pretty much end up using primary keys. When you take an object store, you not necessarily have any identifiers at all. When you have an in-memory implementation and few example data, having a &quot;getAll&quot; method might be fine, but on a real database, that method will almost certainly blow up. How do you write an API that accounts for that?</p>
+<p>Sure, sure. Its possible of course, there are plenty of ways to do that. I won't write down a gazillion implementation options now because the important point is: Whatever it is you want to abstract over, complexity is introduced that is not needed otherwise. Additionally, if you don't know the details of what you want to abstract over, your design will be insufficient. In further addition, when we assume all abstraction to be leaky, even if you have perfectly anticipated the unknown and a good design, your abstraction will cause damage to your code that wouldn't have happened otherwise.</p>
+<p>So far, see you next time!</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
