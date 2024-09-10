@@ -1,0 +1,101 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/on-clean-architecture-part-2.html">On Clean Architecture (Part 2)</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2024-09-11</span>
+        <h1>On Clean Architecture (Part 2)</h1>
+        <p>The unspoken cost of dependency inversion</p>
+    </header>
+        <div class="image main"><img src="../images/soap.jpeg" alt="" /></div>
+        <p><p>The second entry in the series. Find the first one <a href="https://hannomalie.github.io/posts/on-clean-architecture-part-1.html">here</a>.</p>
+<h2>TLDR</h2>
+<ul>
+<li>Close to always, reusing a costly instance is the real valid reason to use dependency inversion, or better said dependency injection</li>
+<li>Coding against abstractions by default is one of the most harmful things to do</li>
+<li>DI is often applied to enable mockist style testing, which I consider a worst practice</li>
+</ul>
+<h2>On the Dependency Inversion Principle</h2>
+<p>One of those things I experienced people tend to treat as some universal silver bullet and solution to everything: <strong>Dependecy inversion</strong>... In one of the earlier chapters <em>(11, Design Principles)</em>, the book introduces it as</p>
+<blockquote>
+<p>[...] tells us that most flexible systems are those in which source code dependencies refer only to abstractions, not to concretions&quot;</p>
+</blockquote>
+<p>And then starts by showing what kind of dependencies should not be avoided because of their <em>stability</em>, for example standard library or operating system functions. So very good, it emphasizes <em>stability</em> as the main criteria.</p>
+<p>And now up to the problems. It continues by stating</p>
+<blockquote>
+<p>It is the volatile concrete elements of your system [...]. Those are the modules that we are actively developing, and that are undergoing frequent change.</p>
+</blockquote>
+<p>Ok, what again is &quot;module&quot; in this context? And who is &quot;we&quot;? Essential things for the discussion, but not defined before, or I am blind. When we are inside one single codebase, we can change all the code, what do we care about stability? When someone changes a function in a <em>concrete</em> class that I in my class use as a paremeter, then go ahead, it's code, we can change it. It's possible that you need to fix a test then. Where is the big cost or risk here? The alternative is that I use some abstraction (aka interface?) and use some other mechanism on top of that to actually create the implementation (a di container?). Furthermore, a concrete class can encapsulate things as well, it can have a public surface and make everything private also by default. We already introduced enough useless complexity but on top of that, whoever creates the abstraction needs to ensure that the abstraction is <em>actually</em> stable. Read what I wrote in the first entry of the series about abstractions and what problems arise when people try to write code that no one expects to ever change. So what's more risky, more effort now? And we're ignoring things that can't be encoded in the interface. Or that our class now has an undefined number of invariants, because we can't know the implementation anymore by definition.</p>
+<p>From my pov, <strong>polymorphism</strong> - or better the inversion of control to instantiate something, is a rarely substantial reason to use dependency inversion. A more common one nowadays is lifecycle: When you pass in something, the single one instance can be used in other classes as well. That's a good idea when you have costly instances, for example database connections or http clients. And that's about it. More rarely, it's also about removing some amount of code from a class - that could be done by extracting a (concrete) class and just instantiate it in the class body and use it. This however, seems to be out of fashion, because most time the di container is right there and then people will just use it, because that's what everyone is used to. It's overusing of the container because it's easy to do so, instead of thinking about an appropriate location for some seperated code. Common arguments say that those things are then &quot;too coupled&quot; and they must be &quot;decoupled&quot;. Why though? What makes the concretion more prone to coupling than let's say an interface between the collaborating classes? Accidental publicly visible members of the concretion you use? Then what's the deal, make it private and look what your usage site needs to do to adopt. The signature of a public methods needs to change? Okay - you have the same problem when you evolve an interface. Even more so, because people expect interfaces to be rigid. It's not your code, but a dependency? Then you control the version you are using - if you are using a library that gives you trouble upgrading, maybe it's the wrong dependency to introduce in first place. Alas, an abstraction will hardly help you in any of those cases.</p>
+<p>I see coding against abstractions by default as a big problem - because it creates a boundary that needs to be rigid. You want to remove those boundaries wherever you can. Only where you can't - and I mean for <em>very</em> good reasons - you should code against abstractions. And especially not because a SOLID rule says so. I advice to program against concretions wherever possible. I made the experience that a single implementation is almost always everything you will ever need. Adding an additional indirection just for the sake of it, is one of the worst things you can do to your software. Similar to what I wrote in the first post on clean architecture regarding the importance of policy, nobody cares about whether your code works when targeting the abstraction - they care if the concrete instantiation with the given configuration works. Reducing the fidelity between &quot;your view&quot; of the world and how it is in reality imposes risk of mismatch, quite objectively.</p>
+<h2>Regarding testability</h2>
+<p>Back in some long gone days, interfaces where needed for frameworks to be able to <em>mock</em> things when testing. This is not the case anymore, only in few languages I don't care about much (but if you do, maybe I am not a good person for you to seek any advice), this might be still relevant today. Additionally, replacing all dependencies of a class with any sort of test doubles is a preferred technique of mockists testing - which I consider as harmful as coding against abstractions by default. Without dependency inversion, this style is not possible at all in most (compiled) languages. So no wonder a lof people think that DI is strictly necessary for &quot;good&quot; code, because for those folks, &quot;good&quot; means &quot;tested with mocks&quot;.</p>
+<p>The important thing to notice however is, that <em>&quot;testability&quot;</em> and <em>&quot;unit testability&quot;</em> as most people understand it, are quite different things. Not using DI doesn't make anything less testable. It just prevents you from testing things in <em>isolation</em> - or in other words, it forces you to test with <strong>high fidelity</strong>, because you test everything in its real environment, closest to the real world as possible. And yes, that is sometimes not easily possible for a few special things, like database and external APIs - in general the bar for &quot;sometimes&quot; and &quot;special cases&quot; needs to rise here though. For databases, I will once again refer to my post <a href="https://hannomalie.github.io/posts/test-with-the-database.html">https://hannomalie.github.io/posts/test-with-the-database.html</a> and state, that I recommend everyone to at least try how far testing with real databases (and filesystems and what not) gets you until you really must deviate from it.</p>
+<p>Also worth a read in that context might be <a href="https://hannomalie.github.io/posts/test-at-your-boundaries.html">https://hannomalie.github.io/posts/test-at-your-boundaries.html</a> , because for that approach, whether you use DI or not is close to irrelevant, because there's no coupling between the strucutre of your code and the tests, eliminating one of its big selling points. It might be either a disillusional take of mine, or it will be an eye opener for some how much of a relief it is to let go from the urge to dependency injectify all the code.</p>
+<blockquote>
+<p>I had a first class example of the effect I describe with a colleague of mine at work, who at some point had to work on a new project alone, me moving to another project. In our former project together, we experienced severe issues with the traditional testing styles, clean architecture style and SOLID principles (unreadable tests, overuse of mocking, too many indirections in code, scattered code fragments), so I started proposing alternatives and kept explaining what the positive effects on the project and our development would be. We never managed to apply what I suggested, for different reasons. But he called me a couple of weeks into the new project and reported super happily how well my suggestions worked for them over there, because they secretly did all that stuff. He was enthusiastic, encouraged to learn again and a bit in disbelief how he could stubbornly follow those &quot;good practices&quot; for so long.</p>
+</blockquote>
+<h2>On terminology</h2>
+<p><em>Dependency inversion</em> originally means that a piece of code A that depends on some other piece of code B inverts this dependency. It means source code dependency. In order for that to work, it must declare an interface by itself that replaces B completely. This is mostly where I have my troubles with - because it introduces those abstractions I consider harmful. A bit different are interfaces that are not self-defined but for example some interface-only module or some standard api module. That's not exaclty dependency inversion anymore, because we now just have a dependency to some other piece of code C - but when that's rock solid stable etc, it might be not worth discussing further.</p>
+<p><em>Dependency injection</em> on the other hand, only means that regardless of the origin of the dependency, we're gonna inject it where it's needed, instead of instantiating/using it on the spot. This would nowadays be sufficient to fulfill the needs of mockist testers as mentioned above, but the question must still be: Why? Only when sharing instances makes sense, I would say.</p>
+<p>Not sure if we need to mention <em>inversion of control</em> here also, because I see it as a natural consequence of dependency injection - someone has to have the control over instantiating the stuff you want to inject. Can only be the caller. And I don't think it's important whether this is the IoC container or your hand-crafted main method.</p>
+<p>The whole terminology however, is problematic - not everyone has the same understanding of those words. People use them interchangeably, wrong, or rightfully different. Close to no (application) developer would care about source code dependencies in a non-modular code base (which is probably most often the case). Library developers care more about api modules and stability. Spring developers do god damn everything with the IoC container and don't even know anymore how to do it differently.</p>
+<p>So I need to ask <em>why</em>. Why do you do that stuff. And please don't tell me for <em>testability</em>.</p>
+<h2>Closing words</h2>
+<p>I need some closing words. I find it quite difficult to understand what context exactly all those articles and books about DI where written in. What a module is. Which organizational unit works on which part of the system, on which part of the code. What the platform is we're developing on. How dependency management can work. What the deployment units are. What code boundaries we think are important. Yet, all those things are important. I am writing from the point of view of someone working for a decade on microservices, custom plugin runtimes and bigger business applications. The simple argument that &quot;this class should not care about this thing&quot; doesn't work for me anymore, it's not sufficient. I need to ask <em>why</em>? Can we remove it completely? No? Then it's obivously a dependency. Every thing must care for its dependencies, we can't pretend the coupling isn't there, it <em>is</em> there. An indirection only obscures that fact.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
