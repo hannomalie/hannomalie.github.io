@@ -1,8 +1,8 @@
 title=On Clean Architecture (Part 2)
-date=2024-09-11
+date=2024-11-05
 type=post
 tags=architecture
-status=draft
+status=published
 headline=On Clean Architecture (Part 2)
 subheadline=The unspoken cost of dependency inversion
 summary=Dependency inversion managed to get very close to becoming everyone's silver bullet. We need to talk about the costs it imposes and why we should use it less.
@@ -16,6 +16,7 @@ The second entry in the series. Find the first one [here](https://hannomalie.git
 - Close to always, reusing a costly instance is the real valid reason to use dependency inversion, or better said dependency injection
 - Coding against abstractions by default is one of the most harmful things to do
 - DI is often applied to enable mockist style testing, which I consider a worst practice
+- testability is often confused with unit-testability
 
 ## On the Dependency Inversion Principle
 
