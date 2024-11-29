@@ -8,6 +8,9 @@ subheadline=Test at the boundary
 summary=I converted all tests in Spring's example project to blackbox tests. Let's take a look at pros and cons.
 image=images/spring_logo.svg
 ~~~~~~
+This is the first entry in a series of blog posts about Spring.
+Make sure to read my [entry post](https://hannomalie.github.io/posts/dissecting-spring-petclinic-intro.html) before this one.
+
 ## TLDR
 - Blackbox testing can be readable, easy, simple and fast
 - It increases fidelity of your tests
@@ -291,3 +294,6 @@ In my next entry in the series, I will probably write about adding some addition
 think of some selenium (or playwright or whatever is cool nowadays) tests and some snapshot tests - the
 latter ones will protect me from doing any observable changes, even when I change the whole rest of the project's
 implementation - who knows if that's not exactly what I will do when I have some spare time available in the future.
+
+> **_CHANGELOG:_** </br>
+29.12.2024 - Added reference to intrduction post

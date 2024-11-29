@@ -1,5 +1,5 @@
 title=Dissecting Spring petclinic
-date=2024-11-06
+date=2024-11-05
 type=post
 tags=architecture,design
 status=published
@@ -97,3 +97,14 @@ And we'll start with a benchmark for a topic I posted about recently:
 [Test at your boundaries](https://hannomalie.github.io/posts/test-at-your-boundaries.html)!
 So enjoy [__Part 1__ of the series __Dissecting Spring petclinic__](https://hannomalie.github.io/posts/dissecting-spring-petclinic-blackbox-tests.html),
 where I refactor all the tests in the petclinic project to blackbox system tests!
+
+> 
+## All series entries 
+1. https://hannomalie.github.io/posts/dissecting-spring-petclinic-blackbox-tests.html
+2. https://hannomalie.github.io/posts/dissecting-spring-petclinic-persistence.html
+
+<!-- -->
+
+> **_CHANGELOG:_** </br>
+29.12.2024 - Added section for all series entries
+29.12.2024 - Decreased pub date of this post by a day to fix the order of posts in the overview :)
