@@ -30,7 +30,8 @@
         <p>Test at the boundary</p>
     </header>
         <div class="image main"><img src="../images/spring_logo.svg" alt="" /></div>
-        <p><h2>TLDR</h2>
+        <p><p>This is the first entry in a series of blog posts about Spring. Make sure to read my <a href="https://hannomalie.github.io/posts/dissecting-spring-petclinic-intro.html">entry post</a> before this one.</p>
+<h2>TLDR</h2>
 <ul>
 <li>Blackbox testing can be readable, easy, simple and fast</li>
 <li>It increases fidelity of your tests</li>
@@ -150,6 +151,9 @@ void existingNoteIsFound() {
 <p>For me, this led to projects where sliced test contexts got so complicated that it was a pain to alter any component's dependencies in the project, because there was always some test that broke because of missing declarations. Where developers gave up on using more than a single database container, declaring it &quot;impossible to use&quot;, but it seemingly didn't matter, because it was also declared as &quot;too slow&quot;. Oh and doing tests including http and/or networking was also declared to be too slow. Leading to the vast majority of tests being of low fidelity and coupled to implementation details and Spring framework details. Or to components that worked in the tests, because there was a @Transactional helper annotation, but in staging environment, the application threw an exception and was unusable.</p>
 <p>I am quite satisfied how little time it took me to convert existing tests in the petclinic to blackbox tests, how they look like now and how they perform. The limitations Spring imposes on your testing style became somewhat clear by that. Even though many of the challenges I encountered in professional projects didn't show up - probably because petclinic is too small of a project.</p>
 <p>In my next entry in the series, I will probably write about adding some additional tests to the project. I could think of some selenium (or playwright or whatever is cool nowadays) tests and some snapshot tests - the latter ones will protect me from doing any observable changes, even when I change the whole rest of the project's implementation - who knows if that's not exactly what I will do when I have some spare time available in the future.</p>
+<blockquote>
+<p><strong><em>CHANGELOG:</em></strong> </br> 29.12.2024 - Added reference to intrduction post</p>
+</blockquote>
 </p>
 </section>
             </div>
