@@ -1,5 +1,5 @@
 title=Dissecting Spring petclinic (Part 3): From Thymeleaf to jte
-date=2024-12-06
+date=2024-12-23
 type=post
 tags=architecture,design
 status=published
