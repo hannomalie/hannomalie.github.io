@@ -102,9 +102,12 @@ where I refactor all the tests in the petclinic project to blackbox system tests
 ## All series entries 
 1. https://hannomalie.github.io/posts/dissecting-spring-petclinic-blackbox-tests.html
 2. https://hannomalie.github.io/posts/dissecting-spring-petclinic-persistence.html
+3. https://hannomalie.github.io/posts/dissecting-spring-petclinic-templating.html
+4. https://hannomalie.github.io/posts/dissecting-spring-petclinic-browsertests.html
 
 <!-- -->
 
 > **_CHANGELOG:_** </br>
-29.12.2024 - Added section for all series entries
-29.12.2024 - Decreased pub date of this post by a day to fix the order of posts in the overview :)
+29.11.2024 - Added section for all series entries<br>
+29.11.2024 - Decreased pub date of this post by a day to fix the order of posts in the overview :)<br>
+23.12.2024 - Added new entries to list. Fix changelog dates.<br>
