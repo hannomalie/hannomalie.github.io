@@ -1,0 +1,121 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/dissecting-spring-petclinic-browsertests.html">Dissecting Spring petclinic (Part 4): Adding browser tests</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2024-12-24</span>
+        <h1>Dissecting Spring petclinic (Part 4)</h1>
+        <p>Adding some browser tests</p>
+    </header>
+        <div class="image main"><img src="../images/spring_logo.svg" alt="" /></div>
+        <p><p>This is the fourth entry in a series of blog posts about Spring. Make sure to read <a href="https://hannomalie.github.io/posts/dissecting-spring-petclinic-intro.html">the introduction and my other entries</a> before this one.</p>
+<p>This time, I just added some browser based tests to the project utilizing <a href="https://playwright.dev/java/docs/intro">Playwright</a>.</p>
+<h2>TLDR</h2>
+<ul>
+<li>Waiting to add browser tests for the most important clickpaths until now was my biggest mistake in this whole endeavour</li>
+<li>I found multiple errors in functionality <em>(I likely introduced myself)</em> by adding them</li>
+<li>Playwright is surprinsingly good, adding some browser based tests was done in no time</li>
+<li>I consider browser based tests as the best bang for the buck, the best thing you can do to your project if you have any meaningful UI</li>
+</ul>
+<h2>Why Browser based tests</h2>
+<p>When I converted the existing tests in the project to blackbox tests in the very first step of this series, I achieved a pretty high fidelity for those tests: In fact, accessing a server route via HTTP and passing in the relevant query or form data is as close to the application as you could get.</p>
+<p>But.</p>
+<p>It doesn't tell the whole story of the user. That's because the user does not manually call http rountes through some cli and passes in the encoded data for you. He uses the browser - thankfully a hypermedia client, which means all the elements in a web page have defined semantics and we know for example: When we hand out a landing page with a navigation, the user will use the links of the anchors in the navigation to navigate the page. So actually we do not only need to test an http request for the landing page url and one for the items of the navigation bar entries, but we also need to ensure that the anchors of those elements are actually correct. Let's talk about <em>&quot;correct&quot;</em> then.</p>
+<p>Of course we could do a dumb string comparison like <code>assertThat(a.href).isEqualTo(&quot;/owners&quot;)</code> or something. That only would couple the test tightly to the actual value of the href attribute, so that it cannot be changed anymore without the test failing - regardless of the validity of the new value or not. Imagine we want to change the route from <em>/owners</em> to <em>list-owners</em> for example. So by definition, it would break <em>refactoring</em>.</p>
+<p>Without being the biggest deal in the example case, people will claim. But on the other hand, our intention is probably something very different: We want to verify the behaviour of the system: That the user navigates to the owners list when he clicks on a certain navigation item. Browser tests let us do exactly that, by using the same system boundaries the user would be exposed to as well: the browser as a client.</p>
+<p>This way, we get maximum <strong>fidelity</strong>, while keeping coupling to the application structure as small as possible. Great recipe for high quality tests, that keep refactorings possible.</p>
+<h2>Playwright</h2>
+<p>Setting up a test with <strong>Playwright</strong> is a breeze. The above linked documentation shows you all you need. It requires you to add exactly one dependecy to the test scope of your project.</p>
+<blockquote>
+<p><strong><em>Small caveat:</em></strong> Note that the build then reported some missing system dependencies and how to install them via apt. This is something I don't like too much. System dependencies are always a tiny smell and some risk for users of operating systems without a package manager or which are not well supported. I guess it was some very essential for my case, my system is quite fresh, so not big of a deal.</p>
+</blockquote>
+<p>A first test then was written within seconds:</p>
+<pre><code class="language-java">@Test
+void ownerIsCreated() {
+    page.navigate(&quot;http://localhost:&quot; + port + &quot;/owners&quot;);
+    page.locator(&quot;#nav-item-search&quot;).click();
+    page.locator(&quot;#lastName&quot;).type(&quot;asd&quot;);
+    page.locator(&quot;#search-owner-form-submit&quot;).click();
+
+    assertThat(page.content()).contains(&quot;wurde nicht gefunden&quot;);
+
+    // fill in form values
+    page.locator(&quot;#search-owner-form &gt; a&quot;).click();
+    page.locator(&quot;#firstName&quot;).type(&quot;asd&quot;);
+    page.locator(&quot;#lastName&quot;).type(&quot;def&quot;);
+    page.locator(&quot;#address&quot;).type(&quot;foo&quot;);
+    page.locator(&quot;#city&quot;).type(&quot;bar&quot;);
+    page.locator(&quot;#telephone&quot;).type(&quot;1234567890&quot;);
+
+    page.locator(&quot;#submit-owner&quot;).click();
+
+    assertThat(page.content()).contains(&quot;asd def&quot;);
+}
+</code></pre>
+<p>In order to be able to use ids as selectors, I had to add some for the important elements in the page. This can be seen as test-induced damage, as it would not have been necessary without the tests. In fact, they weren't strictly necessary, but the selectors I had to use alternatively were too much coupled to the structure of the page to find them acceptable. Would have worked, would have been bad. So adding ids is some small compromise really not worth much discussion in order to enable this whole approach.</p>
+<p>The test takes less then 2 seconds to run. Multiple tests run around three seconds. I see big, big value for very small effort and a tiny runtime cost.</p>
+<h2>Selenium</h2>
+<p>Not really related to this series or this entry, but: I wanted to give good old Selenium a short try as well, just to have some comparison with Playwrite. Since I had bad experience because of sever setup complexity with other tools like for example Protractor, I was curious. The setup rof Selenium is quite comparable to Playwright - a single dependency needs to be added to the test scope. Done. That's how I love it.</p>
+<p>Yet, the Selenium documentation is way behind the one of Playwright. Walls of text, walls of explanations of stuff nobody cares about. Hard to google, whereas Playwright hits are immediately relevant and on spot. Just to find the <em>&quot;official&quot;</em> place where the selenium dependency one has to use is written down, try it for yourself and find it, maybe it's a skill issue on my side. Also a lot of tutorials try to explain how to use selenium without a build tool, or to be more precise without that driver manager which downloads all necessary dependencies for you, which is a pain in the butt to do manually. Those tutorials are pretty much obsolete. Playwright doesn't suffer from those problems as it seems.</p>
+<p>The API of Selenium seems to be a bit simpler. Not five different objects to instantiate, only one driver and let's go. Not something that I would have expected, because of Selenium's age.</p>
+<p>But then, the exact test I wrote in Playwrite doesn't work translted for Selenium out of the box. One of the first elements is seemingly not interactive. Quickly throwing in a sleep didn't help. Using the driver wait api - which is quite unergonomic - didn't help either. This is why I stop here and conclude that I will use Playwright more often in future projects, because Selenium lacks quite a lot on the documentation and api quality side of things. How times have changed, you let me down, old friend! If it's indeed the problem, Playwright's wait-built-in-API is really much nicer overall.</p>
+<h2>Conclusion</h2>
+<p>I added a few other tests so that most of the user facing functionality is covered. No problems with Playwright, integration was a dream so far, big kudos to the framework!</p>
+<p>Those new tests helped me actually find errors I created in the project throughout all the refactorings. For example I broke the edit functionality of the owners as well as of the pets. And I also broke the views around visits for a pet of an owner. That's because earlier there were either just no tests covering that functionality properly or I deleted them <em>(don't think so, but not entirely sure right now)</em>. With that few new lines of test code, I actually created so much coverage of the application's functionality, that I am quite baffled, even though I have seen that effect in a lot of other projects before. I am tempted to remove some other existing tests that now became redundant. Or even make more tests redundant, like tests for invalid input and so on. I can only resist to scratch that itch because I need to manage my time :)</p>
+<p>This was expected to become only a short, spontanious, unimportant stop on the road to the next series entry. But it became one of the bigger successes and satisfactions. Yess. <a href="https://github.com/hannomalie/petclinic-sandbox/commit/dd71a7e6adfe60a43458c96589fc02591c1d1baa">Here's the commit</a>. Until next time!</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
