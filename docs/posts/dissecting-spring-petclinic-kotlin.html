@@ -1,0 +1,273 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/dissecting-spring-petclinic-kotlin.html">Dissecting Spring petclinic (Part 6 Bonus): Swap Java for Kotlin</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2024-12-31</span>
+        <h1>Dissecting Spring petclinic (Part 6 Bonus)</h1>
+        <p>Swap Java for Kotlin</p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><p>This is the sixth entry in a series of blog posts about Spring. Make sure to read <a href="https://hannomalie.github.io/posts/dissecting-spring-petclinic-intro.html">the introduction and my other entries</a> before this one. However, this is somewhwat of a <strong>bonus entry</strong>. It's not really connected to the original goal, which is anyway already achieved. Nor has it anything to do with Spring. So I will not continue working on this code branch if I ever make another entry in the series, but will use the latest Java state.</p>
+<p>This time, I converted the project from Java to Kotlin. <a href="https://github.com/hannomalie/petclinic-sandbox/pull/2/files">This is the merge request</a> containing all the changes.</p>
+<h2>TLDR</h2>
+<ul>
+<li>Reduction in lines of code of roughly 13%</li>
+<li>The difference in this project are not really big, Java does quite okay here</li>
+<li>Kotlin has a lot of quality of life features that enhance the code in close to every line of the project</li>
+<li>Initial conversion took close to no time, making it more idiomatic took ~ 2-3 hours and was a lot of fun</li>
+<li>No issues worth mentioning</li>
+<li>Biggest difference I found was in nullability handling throughout the whole codebase</li>
+<li>Compilation times are roughly the same, project handling the IDE as well</li>
+</ul>
+<h2>Gradle Kotlin DSL</h2>
+<p>The build file in the project was written in Groovy, something that I don't like much anymore nowadays. But explaining why would be too much for this post. Converting it to Kotlin took a few minutes only, the build file is rather simple. Changing some infix function calls to normal ones, change some single quotes to double quotes and done. I don't know why I write this here at all.</p>
+<h2>Project auto conversion</h2>
+<p>In case you don't know yet, there is a auto-conversion from Java to Kotlin in IntelliJ. Can be done per file. Applying it to the project took and 15 minutes. I had to solve some compilation errors afterwards, that were all about some nullability issues, where it was a bit hard to decide what to do. The Kotlin code out of the box was good, sometimes not too ideomatic. So I spend a couple of hours going through all the files and changed everything to how I would have written it myself.</p>
+<h2>Comparison</h2>
+<p>First of all, there is not much code in this project. And the few bits we have is quite simple. In this project, all in all, <strong>I don't see the big difference between the two languages</strong>. Kotlin vastly outshines Java in a hand full of cases, yes. It is better, without a doubt. But it's also not too dramatic. I could perfectly live with Java in this case and I am a bit surprised by that myself, because as you might know, I love Kotlin.</p>
+<p>Let's take a look at some situations that showed some meaningful differences.</p>
+<h3>First class properties</h3>
+<p>Java records were kind of a disappointment for me on the petclinic journey, you can read about that in an earlier post. First class language support for a property abstraction is so damn helpful for writing readable and concise code and Kotlin just nailed it. If you can't use records, then converting POJO to data classes or even regular classes with just properties reduces that code by 90%. 90% boilerplate.</p>
+<p>The dumbest conversion of the Person class is getting</p>
+<pre><code class="language-kotlin">open class Person : BaseEntity() {
+	@get:NotBlank var firstName: String? = null
+	@get:NotBlank var lastName: String? = null
+}
+</code></pre>
+<p>instead of</p>
+<pre><code class="language-java">public class Person extends BaseEntity {
+	@NotBlank
+	private String firstName;
+
+	@NotBlank
+	private String lastName;
+
+	public String getFirstName() {
+		return this.firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getLastName() {
+		return this.lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+}
+</code></pre>
+<p>And all the other model classes are not any better. For the Owner class it is 47 lines of code against 4. That's close to <strong>12 times the code</strong>. Don't tell me it's dumb code that doesn't matter. It's code, it has to be maintained, needs to be read, understood and changed over time.</p>
+<p>Properties can also be used in interfaces - Java people passionately hate that feature, because with getters and setters it feels strange and is super unergonmic. In a scenario where data might be partial, because it comes in from a form and needs to be validated first, one could even come up with a solution like this:</p>
+<pre><code class="language-kotlin">interface Person {
+    val firstName: String?
+    val lastName: String?
+}
+data class FormPerson(override var firstName: String?, override var lastName: String?): Person
+data class ValidatedPerson(override var firstName: String, override var lastName: String): Person
+</code></pre>
+<p>And suddenly with six lines of code you have a nice abstraction that your validator can use like <code>fun FormPerson.validate(): Either&lt;ValidatedPerson, Violations&gt;</code>, and which ensures that all your code can rely on data being already successfully validated, because it's ensured by the typesystem from now on.</p>
+<h3>Nullability</h3>
+<p>Sometimes I think this is Kotlin's biggest advantage over not only Java, but so many other languages. The design and support for nullability in Kotlin is so nice, it's so smoothly integrated into the language instead of bolted on somehow. Nullability is omnipresent and having good language support helps in every second line.</p>
+<p>Take a look at this example</p>
+<pre><code class="language-kotlin">fun Context.getPageParamOrDefault(): Int {
+    val page = queryParam(&quot;page&quot;) ?: &quot;1&quot;
+    return page.toInt()
+}
+// or even
+
+fun Context.getPageParamOrDefault() = (queryParam(&quot;page&quot;) ?: &quot;1&quot;).toInt()
+</code></pre>
+<p>The elvis operator saves us from</p>
+<pre><code class="language-java">public static int getPageParamOrDefault(Context ctx) {
+    var page = ctx.queryParam(&quot;page&quot;);
+    if(page == null) {
+        page = &quot;1&quot;;
+    }
+    return Integer.parseInt(page);
+}
+</code></pre>
+<p>And even leveraging the latest Java syntax it would be</p>
+<pre><code class="language-java">public static int getPageParamOrDefault(Context ctx) {
+    var page = ctx.queryParam(&quot;page&quot;);
+    return Integer.parseInt(
+        switch(page) {
+            case null -&gt; &quot;1&quot;;
+            default -&gt; page;
+        }
+    );
+}
+</code></pre>
+<p>And I bet my Java colleagues will have to talk to me, as they had to when I started using lambdas in Java back then.</p>
+<p>Or in the PetTypeFormatter class we can write</p>
+<pre><code class="language-kotlin">override fun parse(text: String, locale: Locale): PetType = database.findPetTypes().firstOrNull {
+    it.name == text
+} ?: throw ParseException(&quot;type not found: $text&quot;, 0)
+</code></pre>
+<p>instead of</p>
+<pre><code class="language-java">@Override
+public PetType parse(String text, Locale locale) throws ParseException {
+    Collection&lt;PetType&gt; findPetTypes = this.database.findPetTypes();
+    for (PetType type : findPetTypes) {
+            if (type.getName().equals(text)) {
+                    return type;
+            }
+    }
+    throw new ParseException(&quot;type not found: &quot; + text, 0);
+}
+</code></pre>
+<p>which is just more straight forward, more concise and causes less cognitive overhead cause we don't need to follow three to five statements containing assignments, iterations, conditions and returns.</p>
+<h3>Primary constructors</h3>
+<p>This is another feature that is so unbelievably nice in Kotlin. And so well integrated, it just works for all the classes. In Java, only records have them and people already start abusing records just to get rid of the constructor boilerplate every single normal constructor in Java introduces.</p>
+<pre><code class="language-kotlin">class BaseAppTest(
+    ds: HikariDataSource = getHikariDataSource(&quot;jdbc:h2:mem:testdb&quot;, &quot;sa&quot;, &quot;password&quot;),
+    databaseType: DatabaseType = DatabaseType.H2,
+    port: Int = 0
+) {
+    val database = Database(ds, databaseType)
+    val app = startApplication(port, database)
+    val port = app.port()
+
+    constructor(container: MySQLContainer&lt;*&gt;): this(getHikariDataSource(container.jdbcUrl, container.username, container.password), DatabaseType.MySQL)
+    constructor(container: PostgreSQLContainer&lt;*&gt;): this(getHikariDataSource(container.jdbcUrl, container.username, container.password), DatabaseType.Postgres)
+
+[...]
+
+}
+</code></pre>
+<p>whereas in Java I quickly <a href="https://github.com/hannomalie/petclinic-sandbox/blob/replace-spring/src/test/java/org/springframework/samples/petclinic/BaseSpringBootTest.java#L32-L50">created a mess</a> because I started with a parameterless constructor, then needed a configurable one, than an overloaded one. But one or the other way around, the marked lines in the commit would be the boilerplate I need. Not to speak about overloads for passing a port. Note how in Kotlin, I can just assign properties like database in the class body directly, as well as instantiating the app, thanks to the primary constructor. The port is also part of that and can simply be optionally passed in without any overload crazyness. Default parameters are a big win here.</p>
+<h3>Extensions</h3>
+<p>This</p>
+<pre><code class="language-kotlin">ctx.setResponse(
+    ResponseEntity(renderView(&quot;pets/createOrUpdatePetForm&quot;, model, result), headers, 200)
+)
+</code></pre>
+<p>is more natrual than this:</p>
+<pre><code class="language-java">setResponse(
+    ctx, 
+    new ResponseEntity&lt;&gt;(renderView(&quot;owners/ownerDetails&quot;, modelMap, result), htmlHeaders, 200)
+);
+</code></pre>
+<p>And this</p>
+<p><code>val owner = ctx.getOwnerFromForm()</code></p>
+<p>reads nicer as this</p>
+<p><code>var owner = getOwnerFromForm(ctx)</code></p>
+<p>Most of the functions that operate on the request context, can be written in a nicer way with extensions. Allthough in this project, I haven't used them that dramatically often.</p>
+<h3>Scope functions</h3>
+<pre><code class="language-kotlin">fun getHikariDataSource(
+    jdbcUrl: String,
+    username: String,
+    password: String
+) = HikariDataSource(HikariConfig().apply {
+    this.jdbcUrl = jdbcUrl
+    this.username = username
+    this.password = password
+    addDataSourceProperty(&quot;cachePrepStmts&quot;, &quot;true&quot;)
+    addDataSourceProperty(&quot;prepStmtCacheSize&quot;, &quot;250&quot;)
+    addDataSourceProperty(&quot;prepStmtCacheSqlLimit&quot;, &quot;2048&quot;)
+})
+</code></pre>
+<p>is more readable and lass cognitive load than this:</p>
+<pre><code class="language-kotlin">public static @NotNull HikariDataSource getHikariDataSource(String jdbcUrl, String username, String password) {
+    HikariConfig hikariConfig = new HikariConfig();
+    HikariDataSource ds;
+    hikariConfig.setJdbcUrl(jdbcUrl);
+    hikariConfig.setUsername(username);
+    hikariConfig.setPassword(password);
+    hikariConfig.addDataSourceProperty( &quot;cachePrepStmts&quot; , &quot;true&quot; );
+    hikariConfig.addDataSourceProperty( &quot;prepStmtCacheSize&quot; , &quot;250&quot; );
+    hikariConfig.addDataSourceProperty( &quot;prepStmtCacheSqlLimit&quot; , &quot;2048&quot; );
+    ds = new HikariDataSource( hikariConfig );
+    return ds;
+}
+</code></pre>
+<p>I don't want to say it's the biggest deal in history. But it's an example for so many other spots in the project where I was able to make the code less noisy and removed a lot of temporary variables thanks to scoping functions. Which are really a few standard higher order functions, which is the great deal about them - once you roughly understand how higher order functions and receivers work, you understand them and they will be natural for you and help you.</p>
+<h3>Files</h3>
+<p>One of the from my pov more important things is organization of code in files. Java's strict approach with a file per public class is outdated. Might have made sense a long time ago, but at least today something else is more important: <strong>cohesion</strong>. Things that belong together should reside in the same place, for example one file.</p>
+<p>For the <em>Pet</em> type, I moved <em>Pet, PetType, PetTypeFormatter</em> and <em>PetValidator</em> into one file. Ended up with <em>Pet.kt</em> and <em>PetController.kt</em>. Compared to five files before. Same vor the <em>Vet</em> type. Two files instead of four. All in all, it's a great reduction in file count - less indirections, less distraction when you want to understand how things work. Having a lot of files that all contain only two, three lines of code doesn't make sense. It makes the file tree basically unnavigateable.</p>
+<h3>Collections apis</h3>
+<p>The standard library and collections API is Kotlin's underestimated superpower. Complicated operations are boiled down to a single line of code. Those transformations on collections of different kinds are used too often in code to always do something like this in java:</p>
+<p><code>model.put(&quot;pet&quot;, pets.stream().filter({ it: Pet -&gt; it.id == petId }).findFirst().get())</code></p>
+<p>when instead we can do this</p>
+<p><code>model[&quot;pet&quot;] = pets.first { it.id == petId }</code></p>
+<p>17 times in this small project did I use <code>.stream()</code> just to apply some filtering on a collection.</p>
+<p>Also note, how Kotlin operator functions let you put elements into a map with the assign syntax. This is another example of a tiny thing that is better readable and is omnipresent. 60 occurrences in the project, without me taking a too close look at the spots now.</p>
+<p>Another nice example is that I was able to convert this code:</p>
+<pre><code class="language-java">fun getSpecialties(): List&lt;Specialty&gt; {
+    val sortedSpecs: List&lt;Specialty&gt; = ArrayList(specialtiesInternal)
+    PropertyComparator.sort(sortedSpecs, MutableSortDefinition(&quot;name&quot;, true, true))
+    return Collections.unmodifiableList(sortedSpecs)
+}
+</code></pre>
+<p>to this much nicer Kotlin code:</p>
+<pre><code class="language-kotlin">fun getSpecialties(): List&lt;Specialty&gt; = specialties.sortedBy { it.name?.lowercase() }
+</code></pre>
+<p>Kotlin has read-only collection types as first class citizen and sort functions of every kind you can imagine in the std lib, that works with standard lambda syntax. Then using expression body syntax and there you have your less noisy code that encodes concisely what is done without any distractions.</p>
+<h2>Build times</h2>
+<p>I was able to apply the latest version of Kotlin, which includes the brand new compiler. That one is much faster then the old one. Since increase of compilation times is for years one of the arguments used against Kotlin adoption (from a Java shop point of view), I gave it a shot. <strong>6 seconds</strong> takes <code>./gradlew jar</code> after before <code>./gradlew clean</code> was executed, so it's built from scratch. And <strong>5 seconds</strong> for the same thing in Java on the branch before I converted to Kotlin.</p>
+<p>Note that this was done completely unsientific - I just ran the commands ten times each. This only gives us the information that for this project or any project of comparable size, you will have around one second slower compilation time when doing a compilation from scratch. When you apply a single change in a file, both Kotlin and Java take <strong>~4 seconds</strong> for the task. Recompiling after nothing was changed results in 3 seconds. So I have the strong suspicion that it doesn't make much sense to compare the compilation times in such a small project at all.</p>
+<h2>Conclusion</h2>
+<p>I opened a <a href="https://github.com/hannomalie/petclinic-sandbox/pull/2/files">MR</a> that will be kept in draft state containing all the changes. I only invested a very tiny amount of time after the auto-conversion to make the code a little bit more idiomatic, and the result is already a reduction of around 400 lines of code. Which is roughly 13% of the overall code.</p>
+<p>In this project, the difference between Java and Kotlin is fairly small. This is because we didn't have too many ugly warts like checked exceptions, capturing lambdas, lambdas at all and so on in the project. When <strong>records</strong> can't be used, there's a big difference and <strong>data classes</strong> can still reduce so much boilerplate. The same goes for usage of <strong>scope functions</strong> and <strong>Kotlin's collections api</strong>.</p>
+<p>For me <em>personally</em>, those things make coding a lot more anjoyable. It's easier to do the &quot;right&quot; thing, instead of often accept that Java is what it is and just do it tha way it wants you to. Like for example with the <code>var</code> keyword. That lacks a corresponding <code>val</code>. And can only be used for local variables, whereas most of the time it's just fine to use it in function signatures as well, because type inference is exatly what you inteded to use. Or expression bodies for functions, a feature that is nnnowadays at least planned for Java as well. Being concise often times enhances readability. It's really uncomfy when you are used to that luxury and suddenly you cannot do it and have to type empty curly braces even though the record constrcutor body is empty, just for the sake of it.</p>
+<p>Kotlin is just a nicer language and a nicer overall experience for an ambitious developer. The whole topic is only difficult when the question is &quot;Why Kotlin?&quot; instead of &quot;Why not Kotlin?&quot;. It always ends with the argument that Java has the bigger talent pool. And that is despite all Java shops I worked for also use Kotlin without telling anybody and the fact that average Java developers can be productive in Kotlin within two days. So what difference does it make? I feel it's exactly the same controversy that led me to writing this series at all: &quot;Why don't use Spring?&quot; instead of &quot;Why use Spring?&quot;. I think this series and the code comparisons showed a lot of reasons why &quot;biggest talent pool&quot; cannot be the answer all the time. When the discussion ends here, we'll be forever stuck in the <code>.stream().filter(it -&gt; it.isBar()).findFirst().get()</code> hell. Or doing <code>if(foo.bar == null) throw new RuntimeException(&quot;bar is null&quot;)</code> everywhere in the code.</p>
+<p>I will be fair, in this project, <strong>Kotlin doesn't make a big difference. Java does great here.</strong> If I could only chose a single thing to take over, than it would be nullability handling. It is used too often to just be &quot;undefined&quot; all the time.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
