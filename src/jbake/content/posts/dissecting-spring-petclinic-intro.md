@@ -105,6 +105,7 @@ where I refactor all the tests in the petclinic project to blackbox system tests
 3. https://hannomalie.github.io/posts/dissecting-spring-petclinic-templating.html
 4. https://hannomalie.github.io/posts/dissecting-spring-petclinic-browsertests.html
 5. https://hannomalie.github.io/posts/dissecting-spring-petclinic-replace-spring.html
+6. https://hannomalie.github.io/posts/dissecting-spring-petclinic-kotlin.html
 
 <!-- -->
 
@@ -113,3 +114,4 @@ where I refactor all the tests in the petclinic project to blackbox system tests
 29.11.2024 - Decreased pub date of this post by a day to fix the order of posts in the overview :)<br>
 23.12.2024 - Added new entries to list. Fix changelog dates.<br>
 29.12.2024 - Added new entry to list.<br>
+31.12.2024 - Added new entry to list.<br>
