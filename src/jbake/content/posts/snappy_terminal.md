@@ -1,0 +1,253 @@
+title=Implementing a GPU accelerated terminal
+date=2025-01-18
+type=post
+tags=architecture,design,rendering,code
+status=published
+headline=Implementing a GPU accelerated terminal
+summary=I implemented a GPU accelerated terminal nearly from scratch. Renders 10k fps.
+image=images/snappy_terminal.png
+~~~~~~
+## Terminals
+
+Terminals seem to be trending currently, who would have guessed that, in 2025? Since implementing font rendering
+is on my TODO list for some years now, I gave it a shot. Oh, of course I am talking about hardware accelerated
+rendering here, so utilizing the GPU. I remember the _refterm escalation_ caused by Casey Muratori that already lies
+behind us some years. I read the Github thread back than and watched the [first video](https://youtu.be/hxM8QmyZXtg?si=P-bFq-Kh9g1V8pmr)
+on the topic, but didn't dig any deeper, as I think I have a good understanding of how to render things fast.
+There are plenty of follow-up videos, probably all of them are warmly recommended to watch.
+
+## Results first
+
+I was able to achieve a terminal that can render at around 10k fps, have colored output, support for newline wrapping,
+window resizing, newline wrapping when resizing the window, autocompletion, history, fancy history rendering, a blinking
+prompt, font resizing and maybe a few other things. Here are two videos showcasing it:
+
+<video width="1280" height="920" controls>
+  <source src="../videos/snappy_terminal.mp4" type="video/mp4">
+Your browser does not support the video tag.
+</video>
+
+<video width="1280" height="920" controls>
+  <source src="../videos/snappy_terminal_font_resize.mp4" type="video/mp4">
+Your browser does not support the video tag.
+</video>
+
+Startup time is somewhat below 100 ms. Input is processed at the same frequency as rendering, so roughly 1/10000 seconds (0.1 ms) or so.
+
+## How it's done
+
+No rocket science, really. There is a library called FreeType, it implements excellent font rendering.
+Granted, if you would do that part yourself, the whole story would probably _be_ rocket science. This library
+does the heavy lifting for you - just as GLFW does for windowing. I also used that one. So you might be disappointed
+that I didn't really implement anything "from scratch", at least depending on your point of view and your standard.
+
+### Glyph rendering
+
+With FreeType you can feed in a glyph identifier and your font size. It gives you back the byte data of the rendered glyph
+which is basically a bitmap containing one byte per pixel which is a value between 0 and 1 and encodes the opacity of
+your glyph pixel. You can feed that into a texture and then use that texture in your favorite graphics API. In my case
+OpenGL. If you want an excellent tutorial how to actually do that in code, look [here](https://learnopengl.com/In-Practice/Text-Rendering).
+
+When you implement it like described, you get a subpar performance. The post also explains why: Because the simplest
+way creates a lot of calls on the CPU side to instruct the GPU how to render the text you have.
+
+The first thing we can do is __precalculate__ all the glyphs we have (if there aren't too many) initially and reuse it for
+the rest of the application lifetime.
+
+### Monospace constraint
+
+Terminals have one advantage: They use __monospace__ fonts. That means, every character on screen covers the same amount
+of space. It means, that the position of a character is independet of its predecessors. And that on the other hand,
+means we can render every single character on screen indepdendently. Which means __in parallel__.
+
+### Bindless or texture atlas
+
+_In parallel_ however, needs a bit of explanation. Because it doesn't give you anything when you spawn a gazillion
+threads on the CPU and then have them hammer on the graphics api. We need to arrange our data in a way that we
+only create _one description_ how to render stuff, hand it over to the GPU once and have the GPU then spawn
+the gazillion threads. Modern APIs have all that, so long story short: For the preprendering of the glyphs,
+you can either use a veeery big texture, let's say 4096 x ö4096 or even bigger. Or you can use the newer bindless
+resource APIs that even good old OpenGL already had. With them, you can create a small texture per glyph and
+on the GPU you can freely index it without the need to do anything on the CPU anymore.
+
+I am using a big atlas and just write the FreeType byte data into that with the right x and y offsets. So glyph identifed
+by character 0 is at index 0, char 5 is at index 5 and so on. That makes indexing quite trivial.
+
+Precalculating the whole set of glyphs of the Jetbrains Mono font I used takes onyl some miliseconds, I don't even know
+how many exactly, it doesn't really matter, it's crazy fast.
+
+### Render a glyph
+
+Every glyph on the screen is actually rendered with the trditional rendering pipeline. Just regular textured triangles.
+The texture is our prerendered glyph data, the triangle (actually two) is the cell on the screen determined
+by column and line indices.
+
+### GPU threads
+
+Since we have our char atlas texture in place, we can now spawn as many threads on the GPU as we need: amount of
+columns on the screen times amount of lines. Every cell is size of glyph width times glyph height. We cover a cell
+by one quad (four vertices). That topology can directly be rendered by the GPU. One could also use two triangles,
+probably doesn't make any difference. I use a neat trick where I just bind a dummy vertex buffer that is empty.
+Then in the shader program, I use the given primitve index to index in some constant data.
+
+```glsl
+const vec2 quadVertices[4] = { vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(1.0, 1.0) };
+const vec2 tex_data[4] = { vec2(0), vec2(1.0, 0.0), vec2(0.0, 1.0), vec2(1) };
+            
+vec2 current_pos_data = quadVertices[ gl_VertexID ];
+```
+
+Now we need to fire up quad renderings for the whole screen. This is done with _instancing_, like this_
+
+```glsl
+glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, columns * lines);
+```
+
+In the shader, our thread can be idntified by this
+
+```glsl
+int column_index = gl_InstanceID % columns;
+int line_index = gl_InstanceID / columns;
+```
+
+which gives us the info in which column and line we're currently at.
+
+Remains how a thread knows which position on the screen it should render to. For that, you need to understand
+the different coordinate systems graphics APIs deal with. For OpenGL, see [here again](https://learnopengl.com/Getting-started/Coordinate-Systems)
+for a good post.
+
+The clip space is what we have in the constant vertices array. We need to move everything by +1, so that
+our origin is in 0|0. Multiplying by 0.5, we get a number range from 0 to 1.
+By multiplying with the inverse of column count times column index and vice versa for line index,
+we have the position we search, but in the wrong space. We need to reverse the initial operations and
+get back to clip space. By feeding it into the graphics api _position_ slot, the rest is done for us and
+will result in screen space coordinates at the end. But the OpenGL screenspace starts at the left bottom,
+while it would be neat when our terminal starts in the left upper corner, so I also flip y here.
+
+```glsl
+vec2 current_pos_data = quadVertices[ gl_VertexID ];
+
+current_pos_data += 1; // move so that 0|0 is origin
+current_pos_data *= 0.5; // convert from range 0-2 to 0-1
+
+current_pos_data *= vec2(cell_width_fragment, cell_height_fragment);
+current_pos_data.x += float(column_index) * cell_width_fragment;
+current_pos_data.y += float(line_index) * cell_height_fragment;
+
+current_pos_data *= 2; // convert from range 0-1 to 0-2 back again
+current_pos_data -= 1; // move back so that screen coords are correct again
+
+current_pos_data.y *= -1; // top is 0, so flip on x axis for now. quadVertices could be adjusted as well
+
+gl_Position = vec4( current_pos_data, 0.0, 1.0 );
+```
+
+The texture coordinates simply go over the quad from 0 to 1 and draw the glyph texture in the fragment shader,
+nothing special to see here.
+
+Now we only need a data structure, where we can find the character that should be displayed in a given cell
+for a given cell index.
+
+### Data structures for the text
+
+And that's mostly CPU-side stuff. Text is normally represented by a std library class String. Often you can
+split text directly by newline and keep text available in lines. That data now needs to be transformed.
+Whenever our text that should be on display changes, we need to recreate our representation. The same goes
+for changes of the screen representation of the text: As soon as the window size or the font size changes,
+we need to update.
+
+For every line, we first split it by amount of columns available on the screen. When a line is shorter than
+columns available, we fill up the remaining space with whitespace.
+String data is converted to integer data, where each integer is an index into our precalculated glyph atlas,
+as described above. So we have a big int array of our text now.
+
+Then, we know how many lines our screen can display. We take that many lines from the end of our buffer 
+and copy it to the screen buffer. Our screen buffer is columns times lines exactly mapping to our screen space.
+
+> **_NOTE:_** This copy step is not really necessary, you can freely use an offset and directly index
+into the text data. I only differentiate between the two because a) it's convenient because I don't have
+to care about the case when text is less lines than what's available on screen. And b) because if I ever have
+the time to use different threads for rendering and text processing, it will be easier for me.
+
+The data is send to the GPU whenever it's changed and the data structure used over there is just a fat buffer
+Shader storage buffer in OpenGL speach).
+
+```glsl
+layout(std430, binding = 3) buffer _text
+{
+    int text[];
+};
+layout(std430, binding = 4) buffer _color
+{
+    int color[];
+};
+
+[...]
+
+glyph_column_index = text[gl_InstanceID] % atlas_columns;
+glyph_line_index = text[gl_InstanceID] / atlas_columns;
+```
+
+And we already have everything we need to render the character on screen.
+
+### Color support
+
+With the simple implementation one normally uses, colored text is not too complicated to implement.
+You have input like "\033[4;31mtest\033[0m" and while the first strange symbol activates red underlining,
+the latter one resets it. That's easy to directly use when you render glyph after glyph. For parallel
+rendering, you need to precalculate the color information per glyph.
+
+So before the line splitting is done, we need to find all the ansi color code sequences in the text data,
+map every character to how it should be colored and remove the color codes form the text.
+
+Sounds easy, but actually coding it is not too trivial and tbh my code for that looks like shit.
+Currently I just support around 10 base colors for the text and identify them by integers. As soon as I have time,
+I will probably use the 32 bit more sophisticated or even use 64 bit or more, in order to support alpha values and
+underlining, background colors and so on in different colors.
+
+### Blinking prompt
+
+For the blinking prompt, the text at the prompt end is just a "|". Since I have only one uber shder, I
+have an if statement that checks for the prompt end index and uses scaled sinus of current time to determine
+alpha value. That's not very nice, but probably better than having a second shader program that needs to be bound
+only to render one tiny glyph.
+
+### Autocompletion
+
+A similar hack goes for the prompt completion that is shown slightly lighter in the prompt.
+It's just text that I also send as int array to the shader (not part of the big buffer, but s tiny uniform array).
+And is rendered like the rest of the text with less alpha and identifying the threads by their index.
+
+But what for the glyph that is right under the blinking prompt end? It needs to first render the glyph of the
+prompt completion and on top of that the blinking curser. How to do that with the given structure that maps a thread
+to a cell on screen?
+
+Again, I didn't want to fire up a different shader program only for one glyph (even though I don't know whether
+the overhead for that is more expensive than what I do wth the uber shader). So I fire up one more thread
+than columns * lines simply. And do an index check in the shader whether the current thread is the last one.
+If so, I manipulate the output position to be the end of the prompt and render the glyph that the autocompletion
+contains. Since there's no guarantee which one would be rendered first and which one on top, this would cause
+blending issues for other situations - for the given one, it's not noticable.
+
+## Closing words
+
+When rendering and input handling is coupled, the ms per frame you have is your input latency. At 100000 fps
+with vsync deactivated this gives you excellent results. However, nobody wants a terminal to render at that
+speed, because it would drain your laptop battery fast. This whole thing was just to find out how
+easy it is to create a feature rich terminal that's running very fast.
+
+Font rendering using FreeType is surprisingly easy, very good library. Even though I have some remaining
+question marks in my head regarding the _bearing_ of a glpyh, as I wasn't able to implement that one completely
+waterproof with the prerendering (allthough I think it's possible in theory).
+
+Finally, I used __Java__ for the experiment. So yes, you can write high performance stuff in Java, it's possible.
+You might be able to pull of a faster implementation in your favourite language though. With GraalVM native image
+I compiled the programm to a native executable that is able to start and fail (I just threw an error) in under 100 ms.
+
+What's missing in my implementation is a proper implementation of a virtual terminal. When you launch applications
+like top or cat, they will complain that there is no proper terminal. I didn't go down that rabbit hole yet, as
+I primarily wanted to do implement the renderer - which is more or less independent from how the actual text
+data is generated.
+
+In case you're interested, the repository is [here](https://github.com/hannomalie/snappy-terminal). Don't
+tell me I haven't warned you about the code quality ;)
