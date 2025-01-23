@@ -22,12 +22,12 @@ I was able to achieve a terminal that can render at around 10k fps, have colored
 window resizing, newline wrapping when resizing the window, autocompletion, history, fancy history rendering, a blinking
 prompt, font resizing and maybe a few other things. Here are two videos showcasing it:
 
-<video width="1280" height="920" controls>
+<video width="100%" controls>
   <source src="../videos/snappy_terminal.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>
 
-<video width="1280" height="920" controls>
+<video width="100%" controls>
   <source src="../videos/snappy_terminal_font_resize.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>
@@ -66,7 +66,7 @@ _In parallel_ however, needs a bit of explanation. Because it doesn't give you a
 threads on the CPU and then have them hammer on the graphics api. We need to arrange our data in a way that we
 only create _one description_ how to render stuff, hand it over to the GPU once and have the GPU then spawn
 the gazillion threads. Modern APIs have all that, so long story short: For the preprendering of the glyphs,
-you can either use a veeery big texture, let's say 4096 x ö4096 or even bigger. Or you can use the newer bindless
+you can either use a veeery big texture, let's say 4096 x 4096 or even bigger. Or you can use the newer bindless
 resource APIs that even good old OpenGL already had. With them, you can create a small texture per glyph and
 on the GPU you can freely index it without the need to do anything on the CPU anymore.
 

@@ -234,7 +234,7 @@ texture and when unused for two seconds, it gets unloaded (the texture returned 
  I am neither loading from SSD full speed, nor am I uploading to the GPU in full speed. I am not even
  adjusting the mipmap bias at full speed, it can probably be done much faster without creating a pop-in effect.
 
-<video width="1280" height="920" controls>
+<video width="100%" controls>
   <source src="../videos/unload-out-of-view.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>

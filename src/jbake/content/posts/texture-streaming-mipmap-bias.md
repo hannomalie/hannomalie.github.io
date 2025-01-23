@@ -19,7 +19,7 @@ Instead of doing that, one can also use a float value as mipmap bias and first l
 With a certain rate, let's say one mipmap level per second, one now needs to update the state of the texture
 and advance the bias towards the newly available lowest mipmap level until we reached 0 again.
 
-<video width="1280" height="920" controls>
+<video width="100%" controls>
   <source src="../videos/mipmap-float-bias.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>
@@ -29,7 +29,7 @@ per second. (Note that I don't unload the file content's from memory afaicr, so 
 
 When not reloading a gazillion textures at the same time, the transition can look quite good:
 
-<video width="1280" height="920" controls>
+<video width="100%" controls>
   <source src="../videos/mipmap-float-bias-closeup.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>
