@@ -165,7 +165,7 @@ private fun getFromPool(textureDescription: Texture2DDescription) = texturePool.
 <blockquote>
 <p><strong><em>NOTE:</em></strong>  In this video, everything is still artificially slowed down in order to make it visible. I am neither loading from SSD full speed, nor am I uploading to the GPU in full speed. I am not even adjusting the mipmap bias at full speed, it can probably be done much faster without creating a pop-in effect.</p>
 </blockquote>
-<p><video width="1280" height="920" controls> <source src="../videos/unload-out-of-view.mp4" type="video/mp4"> Your browser does not support the video tag. </video></p>
+<p><video width="100%" controls> <source src="../videos/unload-out-of-view.mp4" type="video/mp4"> Your browser does not support the video tag. </video></p>
 <p>Instead of the checkerboard texture as a replacement, I will keep a low level mipmap texture alive for every texture, which is then used when the real texture is unloaded. Alternatively, I could just use the highest mipmap texture's (1x1) texel color as uniform color value, I will see whether that's sufficient.</p>
 <h2>Changeset and some words about workflows</h2>
 <p>The commit that made everything better can be found <a href="https://github.com/hannomalie/hpengine/commit/2e38eb8cc917648b1161d9e5310f7dfa29a12f45">here</a>.</p>
