@@ -1,0 +1,163 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/lit-kt.html">Lit with Kotlin</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2025-02-05</span>
+        <h1>Lit with Kotlin</h1>
+        <p></p>
+    </header>
+        <div class="image main"><img src="../images/Kotlin_Icon.png" alt="" /></div>
+        <p><h2>Lit - with Kotlin</h2>
+<p>I recently did <a href="https://hannomalie.github.io/posts/ktx.html">some experiments</a> using a compiler plugin for custom string literals to have something like JSX, but for Kotlin JS. I came to realize that <a href="https://lit.dev/docs/">Lit</a> is much more suitable for that purpose, because in theory it is sufficient to map Javascript's custom string literals to Kotlin's and boom, everything should work, because Lit already does all other stuff for us.</p>
+<p>And indeed, it works.</p>
+<p>I was able to pull this off:</p>
+<pre><code class="language-kotlin">class SimpleNumber : LitElement() {
+    var number: Int = 0
+        set(value) {
+            field = value
+            requestUpdate()
+        }
+
+    override fun render(): dynamic {
+        return _html(&quot;&lt;button @click=${ { number++; } }&gt;$number&lt;/button&gt;&quot;)
+    }
+}
+
+customElements.define(HtmlTagName(&quot;simple-number&quot;), SimpleNumber::class.js)
+
+val result0 = _html(&quot;&lt;div&gt;${SimpleNumber(number)}&lt;/div&gt;&quot;)
+val result1 = _html(&quot;&lt;div&gt;&lt;simple-number&gt;&lt;/simple-number&gt;&lt;/div&gt;&quot;)
+</code></pre>
+<h3>The glue between Lit and Kotlin: Terpal</h3>
+<p>Just like my JSX/KTX experiments, this one builds on top of the excellent <a href="https://github.com/exoquery/terpal">Terpal compiler plugin</a> for Kotlin, which gives you custom string literals.</p>
+<p>So when using string literals like &quot;foo${bar.baz}&quot;, a defined function will be called with an array of string parts and values instead of the default interpolated string. This is exactly what Javascript's string literals do, which is in turn exactly what the <a href="https://lit.dev/docs/components/rendering/"><em>html</em> function</a> from Lit accepts.</p>
+<p>And this is where even simple things start to get hairy.</p>
+<p>First, you need to find out what <em>exactly</em> is the shape of the things the html function needs. For that, you go into the Lit sources and read the TypeScript definitions. It's a <em>TemplateStringsArray</em>. And it has a property <em>raw</em>. Easy. In Kotlin you declare:</p>
+<pre><code class="language-kotlin">external interface TemplateStringsArray {
+    var raw: Array&lt;String&gt;
+}
+</code></pre>
+<p>And the html function as</p>
+<pre><code class="language-kotlin">external fun html(a: TemplateStringsArray, b: Array&lt;Any?&gt;): dynamic
+</code></pre>
+<p>But.</p>
+<p>This will fail at runtime. Because in Lit there is a check that the TemplateStringsArray is of type array. Well, in Kotlin, Array is not an open class, which means you cannot inherit from it. So there is no way to extend the Array class, which is how the Javascript array class is represented.</p>
+<p>We need to help ourselves by defining it in JavaScript:</p>
+<pre><code class="language-javascript">class TemplateStringsArray extends Array {
+}
+window.TemplateStringsArray = TemplateStringsArray // so that it can be used everywhere
+</code></pre>
+<p>In order to construct our <em>TemplateStringArray</em>, we resort to a helper function that bypasses Kotlin's typesystem again:</p>
+<pre><code class="language-kotlin">fun TemplateStringsArray(array: Array&lt;String&gt;): TemplateStringsArray {
+    return js(&quot;new TemplateStringsArray()&quot;).unsafeCast&lt;TemplateStringsArray&gt;().apply {
+        this.asDynamic()[&quot;raw&quot;] = array
+        val x = this
+        array.forEach {
+            x.asDynamic().push(it)
+        }
+    }
+}
+</code></pre>
+<p>Test-driving it with a simple div containing a string from a property works.</p>
+<p>But.</p>
+<p>It's not correct, it renders an array value. And if I use more than one parameter it throws an exception. That's because the html function doesn't actually take two arrays as parameters. <code>external fun html(a: TemplateStringsArray, vararg b: Any?): dynamic</code> does the job - the values are passed as multiple single parameters.</p>
+<p>The Terpal interpolator can then look like this, utilizing the splat operator:</p>
+<pre><code class="language-kotlin">class LitInterpolator : Interpolator&lt;Any, dynamic&gt; {
+    override fun interpolate(parts: () -&gt; List&lt;String&gt;, params: () -&gt; List&lt;Any&gt;): dynamic {
+        val params: Array&lt;Any?&gt; = params().toTypedArray()
+        return html(TemplateStringsArray(parts().toTypedArray()), *params)
+    }
+}
+
+val _html = LitInterpolator()
+</code></pre>
+<h3>Kotlin -&gt; ES classes</h3>
+<p>Kotlin compilation to Javascript normally results in a lot of functions, like Javascript worked back then. However, Lit needs proper classes to work in a <a href="https://lit.dev/docs/components/defining/">component-oriented way</a>. Otherwise, you would need to use the <a href="https://lit.dev/docs/libraries/standalone-templates/">standalone-templates approach</a> which is also very cool but makes organizing a complex user interface less good. Maybe I will explore that one in the future. Kotlin support compilation to ecma script classes, but it's experimental and as I experienced has a lot of bugs. For example a simple class definition like</p>
+<pre><code class="language-kotlin">
+class SimpleGreeting: LitElement() {
+    val number: Int = 13
+    var foo: String = &quot;everyone&quot;
+
+    override fun render(): dynamic {
+        return _html(&quot;&lt;div&gt;&lt;div&gt;hello $foo&lt;/div&gt;${ SimpleNumber(number) }&lt;button @click=${ { foo = &quot;bar&quot; } }&gt;Click Me&lt;/button&gt;&lt;/div&gt;&quot;)
+    }
+}
+</code></pre>
+<p>doesn't work - the <em>foo</em> property is completely empty, it's not initialized. When I add an <em>init {}</em> block, I came to conclusion that it's never executed, not even throwing an exception shows up. The number property is not properly passed to the SimpleNumber instance, which is also only a wrapper that in turn does not reflect the increment of the number without me explicitly calling <code>requestUpdate()</code> in the property setter, as shown in the very first code snippet. However, this doesn't help with the initial rendering - you remember, the init block didn't work, and adding an <code>apply {}</code> to the property also doesn't work for some reason.</p>
+<p>Furthermore. Even when the properties would work without problems, Lit expects us to list reactive properties in a static function like <code>static properties = {foo: {type: String}}</code>. In theory, you can simply define Javascript statics in Kotlin by writing a companion object. That doesn't work with the ecma script compilation, the methods are simply not generated.</p>
+<p>Ok, we're not beginners here, we can mitigate all that by using one of the single greatest features only Kotlin offers: <a href="https://kotlinlang.org/docs/delegated-properties.html#property-delegate-requirements">delegated properties</a>. In theory that will make our classes look like this:</p>
+<pre><code class="language-kotlin">class SimpleGreeting: LitElement() {
+    var foo by State(&quot;everyone&quot;)
+    fun render() {}
+}
+</code></pre>
+<p>with a simple delegate implementation like this</p>
+<pre><code class="language-kotlin">data class State&lt;T&gt;(@JsName(&quot;underlying&quot;) var underlying: T) {
+    operator fun getValue(thisRef: LitElement, property: KProperty&lt;*&gt;): T = underlying
+    operator fun setValue(thisRef: LitElement, property: KProperty&lt;*&gt;, value: Any?) {
+        underlying = value as T
+        thisRef.requestUpdate()
+    }
+}
+</code></pre>
+<p>But it also doesn't work. It complains about some methods on undefined blah blah. No way to get it to work.</p>
+<h3>Closing words</h3>
+<p>There are too many things that don't work with Kotlin compilation to Javascript classes. Other than that, I have high hope that using the standalone-template approach of Lit works much better. The custom string literals in Kotlin work very well with a framework like Lit, that doesn't need too much more than that.</p>
+<p>I misused the repository from last time, it is <a href="https://github.com/hannomalie/ktx">here</a>, but you have to take a look at the branch <a href="https://github.com/hannomalie/ktx/tree/lit"><strong>lit</strong></a>.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
