@@ -1,0 +1,244 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/domain-modeling-made-functional-2.html">Domain modeling made functional (Part 2)</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2025-03-03</span>
+        <h1>Domain modeling made functional (Part 2)</h1>
+        <p></p>
+    </header>
+            <p><h2>TLDR</h2>
+<p>In <a href="https://hannomalie.github.io/posts/domain-modeling-made-functional-1.html">part 1</a> we took a look at functional domain modeling in general. Now we focus on a comparison of F# and Kotlin in order to apply it.</p>
+<p>F# is a really nice language and as most of its proponents on twitter rightfully complain, it's a bit underrated. Kotlin has the same problem: Incredibly well designed language, but always fighting to eat into the host language's cake. While type definitions in Kotlin can't match that of F#, they are very close. Other things like constructor functions or asynchronous functions are better in Kotlin. Features like monad comprehensions are on par.</p>
+<h2>Type definitions</h2>
+<p>Let's start with the simple type definitions. <a href="https://github.com/swlaschin/DomainModelingMadeFunctional/blob/master/src/OrderTakingEvolved/Common.SimpleTypes.fs">Here in F#</a> and <a href="https://github.com/hannomalie/dmmf-kt/blob/master/src/main/kotlin/SimpleTypes.kt">here in Kotlin</a>. F# is probably unbeatable here, there is not much more to strip from type definitions like these:</p>
+<pre><code class="language-F#">type WidgetCode = private WidgetCode of string
+type GizmoCode = private GizmoCode of string
+type ProductCode =
+    | Widget of WidgetCode
+    | Gizmo of GizmoCode
+</code></pre>
+<p>To get the equivalent Kotlin code we do:</p>
+<pre><code class="language-kotlin">sealed interface ProductCode
+data class WidgetCode(val value: String): ProductCode
+data class GizmoCode(val value: String): ProductCode
+</code></pre>
+<p>Quite close, hm? F# get's bonus points for using the term <em>type</em>. And some personal bonus points for inverting the place where we define which types are actually part of the ProductCode type. By just taking a look at it with a few meters distance, I would say that F# is easier to read for non-programmers than Kotlin. But it's quite close.</p>
+<p>Here is an example video how efficient you can rewrite data class-like types from F# to Kotlin:</p>
+<p><video width="100%" controls> <source src="../videos/fsharp_type_to_kotlin_data_class.mp4" type="video/mp4"> Your browser does not support the video tag. </video></p>
+<h3>Complete type definitions</h3>
+<p>Those definitions are incomplete though, you can find a lot more lines of code about those types in the links above. In F# we can find the following functions:</p>
+<pre><code class="language-F#">module WidgetCode =
+    let value (WidgetCode code) = code
+    let create fieldName code =
+        let pattern = &quot;W\d{4}&quot;
+        ConstrainedType.createLike fieldName WidgetCode pattern code
+</code></pre>
+<p>First, the declaration of <em>value</em> is not necessary in Kotlin, it's already included in the <em>val</em> declaration in the data class. The closest possible code in Kotlin looks like:</p>
+<pre><code class="language-kotlin">object WidgetCode {
+    fun create(fieldName: String, code: String) {
+        private val pattern = Regex.fromLiteral(&quot;W\\d{4}&quot;)
+        fun create(fieldName: String, code: String?) = ConstrainedType.createLike(fieldName, ::WidgetCode, pattern, code)
+    }
+}
+</code></pre>
+<p>But we can move it to the WidgetCode class and change it a bit</p>
+<pre><code class="language-kotlin">@ConsistentCopyVisibility
+data class WidgetCode private constructor(override val value: String): ProductCode {
+    companion object {
+        private val pattern = Regex.fromLiteral(&quot;W\\d{4}&quot;)
+        operator fun invoke(fieldName: String, code: String?) = ConstrainedType.createLike(fieldName, ::UsStateCode, pattern, code)
+    }
+}
+</code></pre>
+<p>And made three things better: 1. Data classes in Kotlin by default expose a copy method which would bypass validation, which is prevented with the private constructor (and the annotation for now). 2. We moved the factory method into the class, they belong together and should live in the same place as a coherent module. 3. Using operator function, we can still call <code>WidgetCode(&quot;foo&quot;, &quot;myCode&quot;)</code> like a constructor and get a nice <code>Result</code> object back.</p>
+<h2>Function declarations</h2>
+<p>Well, I have to admit as someone who never used F# before, I had my trouble deciphering the lambda-oriented function declarations with type inference, especially when they were higher order functions. Let's take for example this one</p>
+<pre><code class="language-F#">
+type TryGetProductPrice =
+    ProductCode -&gt; Price option
+    
+let internal getPromotionPrices (PromotionCode promotionCode) :TryGetProductPrice =
+
+    let halfPricePromotion : TryGetProductPrice =
+        fun productCode -&gt;
+            if ProductCode.value productCode = &quot;ONSALE&quot; then
+                Price.unsafeCreate 5M |&gt; Some
+            else
+                None
+
+    let quarterPricePromotion : TryGetProductPrice =
+        fun productCode -&gt;
+            if ProductCode.value productCode = &quot;ONSALE&quot; then
+                Price.unsafeCreate 2.5M |&gt; Some
+            else
+                None
+
+    let noPromotion : TryGetProductPrice =
+        fun productCode -&gt; None
+
+    match promotionCode with
+    | &quot;HALF&quot; -&gt; halfPricePromotion
+    | &quot;QUARTER&quot; -&gt; quarterPricePromotion
+    | _ -&gt; noPromotion
+</code></pre>
+<p>we see the getPromotionPrices function which takes a promotionCode and returns a function which takes a productCode and returns an option of price. The fact that those two declarations are in different files with a lot of space between them made it harder to understand for me. In the function we have three local functions, each of them a possible return value. The return value is then determined by simple switching over the promotionCode.</p>
+<p>The most similar Kotlin code I could come up with is</p>
+<pre><code class="language-kotlin">internal fun getPromotionPrices(promotionCode: PromotionCode): GetPromotionPrices {
+    val halfPricePromotion: TryGetProductPrice = { productCode -&gt;
+        if(productCode.value == &quot;ONSALE&quot;) {
+            Price.unsafeCreate(5f)
+        } else {
+            null
+        }
+    }
+
+    val quarterPricePromotion: TryGetProductPrice = { productCode -&gt;
+        if(productCode.value == &quot;ONSALE&quot;) {
+            Price.unsafeCreate(2.5f)
+        } else {
+            null
+        }
+    }
+
+    val noPromotion : TryGetProductPrice = { null }
+
+    return when(promotionCode.value) {
+        &quot;HALF&quot; -&gt; halfPricePromotion
+        &quot;QUARTER&quot; -&gt; quarterPricePromotion
+        else -&gt; noPromotion
+    }
+}
+</code></pre>
+<p>which I consider close to identical, no better, no worse here.</p>
+<h2>Result handling</h2>
+<p>Monads are everywhere in functional programming. Option or Result types are monads. It's very helpful when your language has support to map over them, so that you don't have to unwrap them strangely. Let's take a look at this F# code:</p>
+<pre><code class="language-F#">let toValidatedOrderLine checkProductExists (unvalidatedOrderLine:UnvalidatedOrderLine) =
+    result {
+        let! orderLineId =
+            unvalidatedOrderLine.OrderLineId
+            |&gt; toOrderLineId
+        let! productCode =
+            unvalidatedOrderLine.ProductCode
+            |&gt; toProductCode checkProductExists
+        let! quantity =
+            unvalidatedOrderLine.Quantity
+            |&gt; toOrderQuantity productCode
+        let validatedOrderLine : ValidatedOrderLine = {
+            OrderLineId = orderLineId
+            ProductCode = productCode
+            Quantity = quantity
+            }
+        return validatedOrderLine
+    }
+</code></pre>
+<p>the <code>let!</code> here is a <a href="https://fsharpforfunandprofit.com/posts/let-use-do/#let-and-use-and-do">computation expression</a>, which is a bit of a unusual concept, but basically it depends on the context you are in, what it actually does. In the given code, we're in a <code>result</code> block, the let binding understands that those four functions used over there return a result object. So they can return, when an error is returned, and short-curcuit. To be honest, I didn't look up what <em>exactly</em> the used expressions do, but usually it's something like that.</p>
+<p>In Kotlin, there is a built-in result type, but it isn't generic over error types (and uses exception), so it's not very helpful in most cases. But Kotlin offers three other extremely nice things: Lambdas with receivers, extensions and suspending functions. With that, it's easy for libraries to build such a functionality with seamless integration. Like <a href="https://github.com/michaelbull/kotlin-result">this excellent, small library of a result type</a>, that I use whenever I can in Kotlin. With that, we get code quite similar:</p>
+<pre><code class="language-kotlin">fun toValidatedOrderLine(checkProductExists: CheckProductCodeExists, unvalidatedOrderLine: UnvalidatedOrderLine) = binding {
+    val orderLineId = toOrderLineId(unvalidatedOrderLine.orderLineId).bind()
+    val productCode = toProductCode(checkProductExists, unvalidatedOrderLine.productCode).bind()
+    val quantity = toOrderQuantity(productCode, unvalidatedOrderLine.quantity).bind()
+    val validatedOrderLine = ValidatedOrderLine(
+        orderLineId = orderLineId,
+        productCode = productCode,
+        quantity = quantity,
+    )
+    validatedOrderLine
+}
+</code></pre>
+<p>Here's another video how efficient and easy F# sharp code that uses computation expressions can be converted to monad comprehensions in Kotlin:</p>
+<p><video width="100%" controls> <source src="../videos/fsharp_kotlin_monad_comprehensions.mp4" type="video/mp4"> Your browser does not support the video tag. </video></p>
+<h2>Composition</h2>
+<p>Well. I think there are two things I could complain about the code of the book.</p>
+<p>First thing is the overly heavy usage of anonymous functions. When possible, I prefer regular funtion declarations over lambdas that are bound to a reference. Might be personal preference though.</p>
+<p>Second thing is, that the code is overly focused on composition. I think the book doesn't exactly make a mistake by assuming that there might be a <em>public</em> api and a private implementation. But in most of my projects that distinction is simply overkill. Just don't do the <em>interface layer</em> unless your module(s) are consumed by other projects. Just do the implementation. The distinction makes everything a bit weird. The strategy pattern creeps in everywhere - if there is only one real implementation and only that one is necessary, why not just hardcode it where it's used. Why pass it as dependency, for example here:</p>
+<pre><code class="language-F#">let placeOrderApi : PlaceOrderApi =
+    fun request -&gt;
+        // following the approach in &quot;A Complete Serialization Pipeline&quot; in chapter 11
+
+        // start with a string
+        let orderFormJson = request.Body
+        let orderForm = deserializeJson&lt;OrderFormDto&gt;(orderFormJson)
+        // convert to domain object
+        let unvalidatedOrder = orderForm |&gt; OrderFormDto.toUnvalidatedOrder
+
+        // setup the dependencies. See &quot;Injecting Dependencies&quot; in chapter 9
+        let workflow =
+            Implementation.placeOrder
+                checkProductExists // dependency
+                checkAddressExists // dependency
+                getPricingFunction // dependency
+                calculateShippingCost // dependency
+                createOrderAcknowledgmentLetter  // dependency
+                sendOrderAcknowledgment // dependency
+
+        // now we are in the pure domain
+        let asyncResult = workflow unvalidatedOrder
+
+        // now convert from the pure domain back to a HttpResponse
+        asyncResult
+        |&gt; Async.map (workflowResultToHttpReponse)
+</code></pre>
+<p>Composition is not a goal per se, but a technique to achieve other things. Like reuse of code. But what for if code is already clean and concise. Or the possibility to exchange implementations. But what for, if there is only one.</p>
+<p>I have the impression that there are more moving parts in the code than there need to be. The more moving parts, the more variants are in your code.</p>
+<p>While that complaint is really not that important, I at least wanted to be honest about my view after the code conversion. Following the indirections and compositions was by far the most challenging part, all in all.</p>
+<p>What is very refreshing for me is the simple way how the whole API is assembled. No dependency injection hell, just pass in some parameters and done. That's how it should be. We can learn a lot from that.</p>
+<h2>Conclusion</h2>
+<p>Intended or not, the result of applying what the book shows results in very data-oriented code. Which is nice, because I think it's really lost wisdom, that our programs are at the end only data-transformation-pipelines. Some of Kotlin's language features are a must-have there. It's hard to live without them, once one discovered their effective usage. Like data classes and smart constructors. Result types with monad comprehensions. Sealed types. Suspending functions. Local functions. Expression functions. Nullability. And the upcoming <a href="https://github.com/Kotlin/KEEP/blob/context-parameters/proposals/context-parameters.md">context parameters</a> if they ever land.</p>
+<p>I once had the pleasure to use the shown style with the shown result library and coroutines for a rewrite of an existing project professionally and it was very enjoyable, allthough our domain was quite small. I am a bit sad, that functional domain modelling and data oriented/pipeline oriented programming doesn't get applied more often.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>

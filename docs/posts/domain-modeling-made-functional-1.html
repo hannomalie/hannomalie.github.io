@@ -1,0 +1,240 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/domain-modeling-made-functional-1.html">Domain modeling made functional (Part 1)</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2025-03-02</span>
+        <h1>Domain modeling made functional (Part 1)</h1>
+        <p></p>
+    </header>
+            <p><h2>TLDR</h2>
+<p>Sealed types or union types in a language are a true game changer, because they allow you to efficiently model <em>things</em> and <em>kinds of things</em>, which resembles how most people see their domains. Additionally, they enable you to explicitly write out all the branches your code could possibly have, making it safer. Furthermore, they make you think in results, which in turn helps you writing simple and safe functions to implement system behaviour. Resulting in a domain encoding that is very close to what domain people tell you and at the same time is concise and safe.</p>
+<h2>Functional domain modeling is awesome</h2>
+<p>Let me start with bold words, as if I want to sell you something that actually gets me money instead of just consuming my spare time:</p>
+<p><strong>The book Domain modeling made functional by Scott Wlaschin has the potential to lift your software development game to the next level. Get. This. book.</strong></p>
+<p>Have you been struggling with software projects that turned bad over time really quickly? Was some initial design maybe okayish, yet any change made it uglier and uglier? Did functional programming in general not click for you for valid reasons? I feel you.</p>
+<p>And of course nobody can safe us reliably from that situation. But I belive the approaches and ideas presented in said book are some of the best picks in terms of importance and effectiveness. I not only read through the book but also took the accompaning source code and translated it from F# to Kotlin (<a href="https://hannomalie.github.io/posts/domain-modeling-made-functional-2.html">see part 2</a>). If you can't get the book, maybe you will get hooked by a <a href="https://youtu.be/2JB1_e5wZmU?si=5p-ZDMI6gLe74Bmh">compressed presentation that is available on Youtube</a>.</p>
+<h2>Directly translating a domain</h2>
+<p>Talking to your domain experts will always be the most important thing you can do. As many might know, I am not exactly the biggest fan of domain driven design, but the fundamental idea is right, I think. Mr. Wlaschin in his book makes an impressive example how domain knowledge can get <strong>directly</strong> translated into code, preserving its meaning. As long as your language knows about ... drum rolls ... category theory.</p>
+<p>What I find very important at this point is to remain unbiased towards functional programming and mathematical concepts. If you have ever used an enum, you probably know most of what you need to know already. Let's get to the remaining 25%.</p>
+<p>We're not going into a scientific definition or stuff, you can find plenty of info on the internet. In my own words, what the book will show you is, that domain people, business experts talk about <strong>things</strong>. Things of a certain kind. Things that somehow belong to the same category of things. Well, why not write down exactly that? Create such a category and simply list the things that experts tell you are in there. We <strong>could</strong> do that with an enum, but (in most languages) enum entries do not have associated data, so there is always only ever <em>one instance</em> of such a <em>thing</em>. This is not enough, the domain expert has mutliple instantiations and associated data and functionality in mind when he talks about his <em>things</em>. So let's get straight to the point, your language needs <em>sealed types</em>, or you won't get far with it. Thankfully, even conservative Java has that nowadays, so very few valid excuses are left.</p>
+<p>F# is very impressive here, because the type definitions are as concise as they could be. Here's an excerpt from <a href="https://github.com/swlaschin/DomainModelingMadeFunctional">the repository where all the code from the book is hosted</a>:</p>
+<pre><code class="language-F#">type PersonalName = {
+    FirstName : String50
+    LastName : String50
+}
+type CustomerInfo = {
+    Name : PersonalName
+    EmailAddress : EmailAddress
+    VipStatus : VipStatus
+}
+</code></pre>
+<p>For the rest of the post, I will show you how stuff would look like in Kotlin, which is slightly more verbose.</p>
+<p>So when your domain experts say &quot;We have customers. And customers can be normal customers or vip customers. Vip customers are very important for us, as they drive our profit. We differentiate between normal vips and long-time vips. So when customers order something, they get different prices, vips pay half shipping rates, long-time vips only 25%&quot;.</p>
+<p>You can immediately transcribe it while he speaks to</p>
+<pre><code class="language-kotlin">// We have customers
+enum class Customer
+</code></pre>
+<pre><code class="language-kotlin">// We have customers. And customers can be normal or vip customers
+enum class Customer {
+    NormalCustomer, VipCustomer
+}
+</code></pre>
+<pre><code class="language-kotlin">// We have customers. And customers can be normal or vip customers. [...] We differentiate between normal vips and
+//long-time vips.
+
+sealed interface Customer {
+    object NormalCustomer: Customer
+    sealed interface VipCustomer: Customer {
+        object NormalVip: VipCustomer
+        object LongTimeVip: VipCustomer
+    }
+}
+</code></pre>
+<pre><code class="language-kotlin">// We have customers. And customers can be normal or vip customers. [...] We differentiate between normal vips and
+// long-time vips. So when customers order something, they get different prices, vips pay half shipping rates, long-time
+// vips only 25%&quot;.
+
+sealed interface Customer {
+    object NormalCustomer: Customer
+    sealed interface VipCustomer: Customer {
+        object NormalVip: VipCustomer
+        object LongTimeVip: VipCustomer
+    }
+}
+
+fun Customer.orderSomething(shippingCost: Float) {
+    val shippingRateMultiplier = when(this) {
+        NormalCustomer -&gt; 1f
+        VipCustomer -&gt; when(this) {
+            NormalVip -&gt; 0.5f
+            LongTimeVip -&gt; 0.25f
+        }
+    }
+    val finalShippingCost = shippingRateMultiplier * shippingCost
+    // order something here
+}
+</code></pre>
+<p>Note the code evolution, step by step. Converting from enum to sealed class in Kotlin with IntelliJ is ALT+Enter and takes 1 second. Note also, how we implemented the bare minimum of what we need to model the domain. With F# even better, but the above code could very well be shown and discussed with non-programmers in a call. That means it opens the door for <em>true collaboration</em>.</p>
+<h2>Superpowers of sealed types or union types</h2>
+<h3>Exhaustiveness</h3>
+<p>And while that is already a very solid foundation, it gets even better. With sealed types (in most languages) you can do exhaustive switches. That means you get a <strong>compiler error</strong> whenever you switch over a type and don't handle one of the possible cases. That will make all your functions <strong>total</strong>, there won't be any code branch that you haven't explicitly written out. Which gives you an enormous safety.</p>
+<p>Think of the situation another vip customer type is added, the platinum customer. You extend the sealed type</p>
+<pre><code class="language-kotlin">sealed interface VipCustomer: Customer {
+    object NormalVip: VipCustomer
+    object LongTimeVip: VipCustomer
+    object PlatinumCustomer: VipCustomer
+}
+</code></pre>
+<p>and immediately get a compiler error in <code>orderSomething</code> because then switch is not exhaustive anymore and the type PlatinumCustomer is not handled. Over the time, there will be lots of such cases and you will never miss anyone of it.</p>
+<h3>Associated data</h3>
+<p>In the above example I deliberately stick to the most simple solution, for example I used enums first, because they are the simplest possible implementation to cover the requirements thus far. Or I use object declaration in the example above - that's rarely sufficient in real world projects, because most of the <em>things</em> domain people talk about have associated data of some form. So let's again play the game. Your domain expert tells you: &quot;When customers order something successfully, we ship to their shipping address. Their receipt will be sent to their billing address. A shipping address always has firstname, lastname, street and postal code. Billing address as well. A customer has a default shipping address and a default billing address, too. When he doesn't have a default billing address, it should be the default shipping address. He doesn't need to have a default shipping address though, he can put one in for every order, if he likes. He can pass in both also for every order specifically.&quot;</p>
+<pre><code class="language-kotlin">data class Address(val firstName: String, val lastName: String, val street: String, val postalCode: Int)
+typealias ShippingAddress = Address
+typealias BillingAddress = Address
+
+fun Customer.orderSomething(
+    shippingCost: Float,
+    shippingAddress: ShippingAddress = defaultShippingAddress, 
+    billingAddress: BillingAddress = defaultBillingAddress ?: shippingAddress,
+) {
+    // ...
+}
+
+val customer = Customer(Address(&quot;Max&quot;, &quot;Mustermann&quot;, &quot;Teststraße 12&quot;, 12345))
+val companyBillingAddress = // ...
+customer.orderSomething(shippingCost = 10, billingAddress = companyBillingAddress)
+</code></pre>
+<p>This is also the first time where a discussion can arise, because how exactly defaults of shipping and billing addresses work is not 100% clear.</p>
+<p>What should have gotten clear here is, that our customer can not longer be an enum or an object declaration, we need to define the addresses of a customer somehow. Let's try:</p>
+<pre><code class="language-kotlin">sealed interface Customer {
+    data class NormalCustomer(val defaultShippingAddress: Address, val defaultBillingAddress: Address?): Customer
+    sealed interface VipCustomer: Customer {
+        data class NormalVip(val defaultShippingAddress: Address, val defaultBillingAddress: Address?): VipCustomer
+        data class LongTimeVip(val defaultShippingAddress: Address, val defaultBillingAddress: Address?): VipCustomer
+    }
+}
+</code></pre>
+<p>The duplication probably bothers you. Yes, the given example could as well be written as a single Customer class that contains an enum flag. As soon as you add further data, like a date since when the LongTimeVip is vip, or a vip level for the two vip customer types, that approach would fall short quickly. With the given approach, there is close to no coupling between what sounded distinct from the domain-perspective.</p>
+<blockquote>
+<p>NOTE: Of course it's also very much possible to write &quot;traditional oop code&quot; that is good and meets the requirements. The functional way is only one of your tools and worth to be considered.</p>
+</blockquote>
+<h2>The rest is functions</h2>
+<p>We talked a lot about the data part of an application, but what about the behaviour? Well, functional programming embraces immutability and pure functions. So behaviour is best modeled with functions that fulfill those criteria. I think nowadays that's not controvesial anymore, even other paradigms like object orientated programming embraces those things naturally. When talking to domain experts or when doing event storming, it becomes clear that most people tend to think in &quot;events&quot;. They describe processes where certain actions are initiated and the system has some defined paths and at the end there is some observable behaviour. Like &quot;When a customer acknowledes his shopping cart, the order is send and he gets an acknowledgement email&quot;. The customer is the actor, acknowleding the cart is the action and order and email sending are two results. In functional style, it could be implemented like this:</p>
+<pre><code class="language-kotlin">fun Customer.acknowledgeShoppingCart(
+    shoppingCart: ShoppingCart
+): List&lt;Event&gt; {
+    // reserve items from stock for packaging
+    // calculate Price
+    // send email
+    return listOf(OrderSent(), EmailSent())
+}
+</code></pre>
+<p>Of course this is a ridiculously simplified version of how to do it. Stuff is async, results have a lot of unhappy paths, you need to have certain points in the process that can be retried and so on and so forth. All that can of course be handled.</p>
+<h3>Results</h3>
+<p>First the elephant in the room. Most actions have multiple possible branches, results, happy ones and unhappy ones. The important thing: Errors are valid outcomes and treated as values. No exceptions. Everything needs to show up in the signatures. So either you model all your outcomes as sealed types. Or you <a href="https://github.com/michaelbull/kotlin-result">embrace result types</a> that differentiate between success and failure cases. The latter enables you to write nice code could look like:</p>
+<pre><code class="language-kotlin">sealed interface Sent
+object ItemsSent: Sent
+object EmailSent: Sent
+typealias Ack = Pair&lt;ItemsSent, EmailSent&gt;
+sealed interface StockFailure
+sealed interface AckFailure
+object ReserveFailure: AckFailure, StockFailure
+object SendItemsFailure: AckFailure, StockFailure
+object SendMailFailure: AckFailure
+
+
+suspend fun Customer.acknowledgeShoppingCart( // async function
+    shoppingCart: ShoppingCart
+): Result&lt;Ack, AckFailure&gt; = coroutineBinding { // monad comprehension block starts here
+    val orderSendingResult: ItemsSent = reserveAndSendItems().bind() // can be async, returns error if error
+    // calculate Price
+    val emailSendingResult: EmailSent = sendMail().bind() // can be async, returns error if error
+    
+    return Ack(orderSendingResult, emailSendingResult)
+}
+</code></pre>
+<p>Given such an example, it's not hard to imagine a domain expert's input in the like of &quot;When an order is placed, stock is checked and either sufficient or insufficient. When insufficient, that causes the ordering process to fail. This means an error in the UI and no mail is sent.&quot; With the given results, the calling code knows exactly what happened and can handle accordingly. All the benefits of sealed types are brought to bear by result types as well.</p>
+<blockquote>
+<p>NOTE: Purity of functions remains as the one point that is difficult. There are common approaches in functional programming to deal with effects in general or IO in specific. However, my current opinion is, that this is exactly where people stop seeing any benefit of the solution and perceive the abstractions as too complicated and of little value. When your function uses some external service to send a mail, it automatically has side effects. <a href="https://youtu.be/P1vES9AgfC4?si=icEJuRZGDYav3kG7&amp;t=2563">Here is another video</a>, also by Scott Wlaschin, which describes this challenge and possible solutions much better than I could, so I encourage you to watch that video instead and find your own good compromise.</p>
+</blockquote>
+<p>My experience is, that dependency injection and good result types are enough to address the problem of IO well enough.</p>
+<h3>Data: Make illegal states irrepresentable</h3>
+<p>Now that we already know about result types, we can use that knowledge to its full potential. You can use it for the whole of your validation layer. Because certainly your application takes unvalidated input, for example from the user. A shipping address has a firstname. Your domain expert might only assume it, but certainly that thing shouldn't be empty. So let's model a data type</p>
+<pre><code class="language-kotlin">@ConsistentCopyVisibility
+data class NonEmptyString private constructor(val value: String) {
+    companion object {
+        operator fun invoke(possiblyEmpty: String): Result&lt;NonEmptyString, String&gt; = if(possiblyEmpty.isBlank()) {
+            Err(&quot;Empty string&quot;)
+        } else {
+            Ok(NonEmptyString(possiblyEmptyString))
+        } 
+    }
+}
+//[...]
+data class ShippingAddress(val firstName: NonEmptyString /*[...]*/ )
+val shippingAddressOrError = binding {
+    val firstName = NonEmptyString(&quot;&quot;).bind() // will cause a failure and return Err result from binding block
+    ShippingAddress(firstName)
+}
+</code></pre>
+<p>You are now forced to go through the factory method and you cannot have an empty string get along in your code, it will be prevented right where the input is validated. So your shipping address is inherently safe. Of course you can do all of your validation like that - Maximum of 50 characters, integer values between 0 and 10, a non empty list and so on and so forth. What might be a bit unusual for many programmers is simply that: unusual. Take a look at <a href="https://github.com/swlaschin/DomainModelingMadeFunctional/blob/master/src/OrderTakingEvolved/Common.SimpleTypes.fs">the code from the book</a> or <a href="https://github.com/hannomalie/dmmf-kt/blob/master/src/main/kotlin/SimpleTypes.kt">my conversion of it</a> to see that it's perfectly possible to define custom data types and validations for like everything.</p>
+<p>Validations can exist for technical reasons (no more than 50 chars for a database column) or for functional reasons (a delivery address must always be present). By taking domain expert's input, these can be implemented just like the types itself.</p>
+<h2>Closing Part 1</h2>
+<p>The introduction summarized everything well enough. In <a href="https://hannomalie.github.io/posts/domain-modeling-made-functional-2.html">part 2</a>, we can take a closer look at the differences between F# and Kotlin.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
