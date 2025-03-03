@@ -93,7 +93,7 @@ there __is__ a database, because that's a reasonable common tool to achieve pers
 implicitly required by everyone without saying it. Whether it will be a file stored on disk or an actual database
 is an implementation detail, sure. But then again, it would be better to design and implement every single
 usecase based on the actual implementation detail from the start, because then it will immediately become
-clear when the implementation is insufficient. // TODO: Example here?
+clear when the implementation is insufficient.
 
 ## False: Users don't care
 
