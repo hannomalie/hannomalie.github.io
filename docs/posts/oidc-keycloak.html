@@ -1,0 +1,308 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/oidc-keycloak.html">OIDC in your app with Keycloak</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2025-03-19</span>
+        <h1>OIDC in your app</h1>
+        <p></p>
+    </header>
+            <p><blockquote>
+<p><strong>TLDR:</strong> <a href="https://github.com/hannomalie/javalin-keycloak-oidc">Here</a> I created a repository containing OIDC standard flow integration in the simplest possible way in a simple Javalin webapp, without any big and complicated frameworks that hide stuff from you, so that you can see all the good http happen right there. Contains a completely self contained Junit test with high fidelity.</p>
+</blockquote>
+<p>It looks like the days where it was okay and sufficient to just use username password authentication in your apps are long over. Almost all (web) projects I worked on in the last years used token authentication and single sign on. Almost always, it was a dedicated team that &quot;owned&quot; the auth topic - so very few people had moderate knowledge of the topic, while the other 95% of the developers knew almost nothing about it. I have no idea why I write this, I don't think that we are able to drastically change that situation - because there is just too much stuff to know about auth in order to make everyone the expert we need to own the topic. But as always, I think it's helpful to understand at least some basics and therefore I wanted to implement a simple <strong>OIDC</strong> authentication flow with nothing but http. So that one can see what is necessary to get a basic, yet quite sophisticated base going. If you don't know anything about the topic, this blog is probably not the right place to read about it, maybe <a href="https://www.microsoft.com/en-us/security/business/security-101/what-is-openid-connect-oidc">this Microsoft blogpost</a> is a good introduction.</p>
+<p>Since nothing is worth a penny without a high-fidelity automated test, I implemented exactly that. Using a <strong>Keycloak</strong> testcontainer, <strong>Javalin</strong> and <strong>Playwright</strong> to actually navigate a true browser like a user.</p>
+<h3>Basic OIDC standard flow</h3>
+<p>Brief summary what the standard flow does:</p>
+<ol>
+<li>The user enters your web page.</li>
+<li>He's determined as unauthenticated, so he's redirected to the login page.</li>
+<li>The login page is a username password mask directly delivered from an auth system</li>
+<li>The credentials are verified by the auth system and the user gets redirected again</li>
+<li>When successful, the user's web context is populated with an access token which is now sent with every request the user's browser performs</li>
+<li>The access token is verified on each request and the user gets redirected if it's invalid</li>
+<li>The access token's payload is used to authorize the user's actions</li>
+</ol>
+<h3>How to manually configure Keycloak</h3>
+<p>So far so good. Let's now dive into <strong>the</strong> open source solution for auth: Keycloak. OIDC is a standard, which means that when you test with a compliant solution, you automatically achieve a high fidelity and you can be sure that your app actually works. However, a lot of the end-to-end-experience will depend on the <strong>config</strong> you apply to the systems. Simple example: When your prod system doesn't have user Max Mustermann, you won't be able to login as Max Mustermann. No matter how nice your test Keycloak is configured to have a Max Mustermann and no matter how nice you test that the login succeeds in that case - in prod, people won't be able to login because their user is missing. Another example: When your prod auth system doesn't allow to redirect to /foo after successful login, your app will happiliy do it in your test setup, but will fail to do so in production.</p>
+<p><a href="https://www.keycloak.org/getting-started/getting-started-docker">Here</a> is a very nice introduction about what you have to do in Keycloak in order to get basic authentication running. The steps are</p>
+<ol>
+<li>Run Keycloak</li>
+<li>Access the admin interface</li>
+<li>Create a <strong>realm</strong>, which can be understood as a tenant and configure it</li>
+<li>Create a <strong>user</strong> in the realm</li>
+<li>Create a <strong>client</strong>, which can be thought of an &quot;application kind&quot; and configure it</li>
+</ol>
+<h3>How to configure Keycloak in code</h3>
+<p>After doing it manually, you understand what elements and config is needed. In the test setup we can do it in code:</p>
+<pre><code class="language-kotlin">KeycloakContainer().use { keycloak -&gt;
+    keycloak.start()
+
+    val realmName = &quot;myrealm&quot;
+
+    var server: Javalin? = null
+    val keycloakBaseUrl = keycloak.authServerUrl
+
+    val keycloakAdmin = Keycloak.getInstance(
+        keycloakBaseUrl,
+        &quot;master&quot;,
+        keycloak.adminUsername,
+        keycloak.adminPassword,
+        &quot;admin-cli&quot;
+    )
+    // thanks to testcontainers we could as well do 
+    // val keycloakAdmin = keycloak.keycloakAdminClient
+
+    val serverPort = 8081 // this is the port where my webapp runs locally
+
+    keycloakAdmin.realms().create(RealmRepresentation().apply { // thanks Koltin for scope functions &lt;3
+        id = realmName // thanks Koltin for property conventions &lt;3
+        realm = realmName
+        isEnabled = true
+        users = listOf(
+            // this is our test user we want to enable to login
+            UserRepresentation().apply {
+                email = &quot;test@test.de&quot;
+                username = &quot;testuser&quot;
+                firstName = &quot;Tester&quot;
+                lastName = &quot;McTest&quot;
+                isEnabled = true
+                credentials = listOf(CredentialRepresentation().apply {
+                    type = CredentialRepresentation.PASSWORD
+                    value = &quot;12345&quot;
+                    isTemporary = false
+                })
+            }
+        )
+        clients = listOf(
+            ClientRepresentation().apply {
+                // this is the client, I named it like the web framework i use for the web app, normally
+                // you would have something like &quot;orderservice-client&quot;
+                id = &quot;javalin&quot;
+                clientId = &quot;javalin&quot;
+                clientAuthenticatorType = &quot;client-secret&quot;
+                isPublicClient = true
+                protocol = &quot;openid-connect&quot;
+                name = &quot;javalin&quot;
+                baseUrl = &quot;/&quot;
+                // this is important, you want to restrict the urls where your user will get redirected to
+                // after a successful login
+                rootUrl = &quot;http://localhost:$serverPort&quot;
+                redirectUris = listOf(&quot;/auth_redirect&quot;)
+                isEnabled = true
+            }
+        )
+    })
+
+    val realm = keycloakAdmin.realm(realmName).toRepresentation()
+    assertNotNull(realm)
+}
+</code></pre>
+<h3>How to test with Playwright</h3>
+<p>And now you can verify that your login is indeed successful, when the correct credentials are passed in:</p>
+<pre><code class="language-kotlin">// [...]
+
+val server = startServer(keycloakBaseUrl, serverPort, realmName)
+try {
+    val loginUrl = &quot;$keycloakBaseUrl/realms/${realmName}/protocol/openid-connect/auth?&quot; +
+            &quot;scope=openid&amp;amp;&quot; +
+            &quot;response_type=code&amp;amp;&quot; +
+            &quot;client_id=javalin&amp;amp;&quot; +
+            &quot;redirect_uri=http://localhost:$serverPort/auth_redirect&quot;
+    
+    
+    Playwright.create().use { playwright -&gt;
+        val browser: Browser = playwright.chromium().launch()
+        val page: Page = browser.newPage()
+        // try to access a secured page without login
+        page.navigate(&quot;http://localhost:$serverPort/secured&quot;)
+        // expect to get redirected to the login page
+        assertEquals(&quot;&quot;&quot;&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body style=&quot;background-color:black&quot;&gt;&lt;a href=&quot;$loginUrl&quot; target=&quot;_self&quot;&gt;&lt;button class=&quot;btn&quot;&gt;Login&lt;/button&gt;&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;&quot;&quot;&quot;, page.content())
+    
+        // click the big login button ;)
+        page.getByText(&quot;Login&quot;).click()
+    
+        // on the login page provided by keycloak, fill in credentials and login
+        page.locator(&quot;#username&quot;).fill(&quot;test@test.de&quot;)
+        page.locator(&quot;#password&quot;).fill(&quot;12345&quot;)
+        page.locator(&quot;#kc-login&quot;).click()
+    
+        // expect to be on a page where logout is available
+        assertEquals(&quot;&quot;&quot;&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body style=&quot;background-color:black&quot;&gt;&lt;a href=&quot;/logout&quot; target=&quot;_self&quot;&gt;&lt;button class=&quot;btn&quot;&gt;Logout&lt;/button&gt;&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;&quot;&quot;&quot;, page.content())
+    
+        // try to access another secured page
+        page.navigate(&quot;http://localhost:$serverPort/secured-as-well&quot;)
+        assertEquals(&quot;&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;This is another secured endpoint&lt;/body&gt;&lt;/html&gt;&quot;, page.content())
+    
+        page.goBack()
+    
+        // logout and expect a redirect to the login button page again
+        page.locator(&quot;.btn&quot;).click()
+        assertEquals(&quot;&quot;&quot;&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body style=&quot;background-color:black&quot;&gt;&lt;a href=&quot;$loginUrl&quot; target=&quot;_self&quot;&gt;&lt;button class=&quot;btn&quot;&gt;Login&lt;/button&gt;&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;&quot;&quot;&quot;, page.content())
+    }
+} finally {
+    server.stop()
+}
+</code></pre>
+<h3>How the app looks like</h3>
+<p>For the given test, a simple app written in Kotlin with Javalin can be as simple as this:</p>
+<pre><code class="language-kotlin">fun startServer(keyCloakBaseUrl: String, port: Int, realmName: String): Javalin {
+    // (step 0: get keycloak public key)
+    val getPublicKeyRequest = Request.Builder()
+        .url(&quot;$keyCloakBaseUrl/realms/$realmName&quot;)
+        .get()
+        .build()
+    val publicKey = client.newCall(getPublicKeyRequest).execute().use { response -&gt;
+        if (!response.isSuccessful) throw IOException(&quot;Unexpected code $response&quot;)
+
+        val publicKey = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .readValue(response.body!!.bytes(), PublicKeyResponse::class.java).public_key
+
+        val decodedKey: ByteArray = Base64.getDecoder().decode(publicKey)
+        KeyFactory.getInstance(&quot;RSA&quot;).generatePublic(X509EncodedKeySpec(decodedKey))
+    }
+
+    // (step 2: define routes)
+    val app = Javalin.create()
+        // (step 2a: define a before filter that requires an access token for all routes but 3 exceptions)
+        .exception(InvalidTokenException::class.java) { e, ctx -&gt;
+            ctx.redirect(&quot;/login&quot;)
+        }
+        // (step 2b: define a before filter that requires an access token for all routes but 3 exceptions)
+        .beforeMatched { ctx -&gt;
+            if (ctx.path() !in listOf(&quot;/unsecured&quot;, &quot;/login&quot;, &quot;/auth_redirect&quot;)) {
+                validateAccessToken(publicKey, ctx.accessToken)
+            }
+        }
+        // (step 2c: define a logout endpoint that removes the token and redirects to login page)
+        .get(&quot;/logout&quot;) { ctx: Context -&gt;
+            ctx.accessToken = null
+            ctx.redirect(&quot;/login&quot;)
+        }
+        // (step 2d: on login page we have a button that sends the user over to the keycloak login page)
+        .get(&quot;/login&quot;) { ctx: Context -&gt; ctx.result(getLoginPage(keyCloakBaseUrl, port)).header(&quot;Content-Type&quot;, &quot;text/html&quot;) }
+        .get(&quot;/unsecured&quot;) { ctx -&gt; ctx.result(&quot;This is a unsecured endpoint&quot;) }
+        .get(&quot;/secured&quot;) { ctx -&gt;
+            ctx.result(
+                &quot;&quot;&quot;
+                &lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body style=&quot;background-color:black&quot;&gt;&lt;a href=&quot;/logout&quot; target=&quot;_self&quot;&gt;&lt;button class=&quot;btn&quot;&gt;Logout&lt;/button&gt;&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;
+            &quot;&quot;&quot;.trimIndent()
+            ).header(&quot;Content-Type&quot;, &quot;text/html&quot;)
+        }.get(&quot;/secured-as-well&quot;) { ctx -&gt;
+            ctx.result(
+                &quot;&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;This is another secured endpoint&lt;/body&gt;&lt;/html&gt;&quot;
+            ).header(&quot;Content-Type&quot;, &quot;text/html&quot;)
+        }
+        // (step 2e: this is the endpoint the user will get redirected to after login, a &quot;code&quot; parameter is send with it)
+        .get(&quot;/auth_redirect&quot;) { ctx -&gt;
+            val request = Request.Builder()
+                .url(&quot;$keyCloakBaseUrl/realms/$realmName/protocol/openid-connect/token&quot;)
+                .post(
+                    FormBody.Builder()
+                        .add(&quot;client_id&quot;, &quot;javalin&quot;)
+                        .add(&quot;redirect_uri&quot;, &quot;http://localhost:${port}/auth_redirect&quot;)
+                        .add(&quot;grant_type&quot;, &quot;authorization_code&quot;)
+                        .add(&quot;code&quot;, ctx.queryParam(&quot;code&quot;).toString())
+                        .build()
+                )
+                .build()
+
+            // (step 2f: we post the code to keycloak to get an access token and safe it into the user's cookies
+            client.newCall(request).execute().use { response -&gt;
+                if (!response.isSuccessful) throw IOException(&quot;Unexpected code $response&quot;)
+
+                val authenticationData =
+                    ctx.jsonMapper()
+                        .fromJsonString&lt;AuthenticationData&gt;(response.body!!.string(), AuthenticationData::class.java)
+                ctx.accessToken = authenticationData.access_token
+                ctx.redirect(&quot;/secured&quot;)
+            }
+        }
+        .start(port)
+    return app
+}
+</code></pre>
+<p>While we need some helper functions. First, the login page:</p>
+<pre><code class="language-kotlin">private fun getLoginPage(keycloakBaseUrl: String, port: Int): String {
+    val url = &quot;$keycloakBaseUrl/realms/myrealm/protocol/openid-connect/auth?&quot; +
+            &quot;scope=openid&amp;&quot; +
+            &quot;response_type=code&amp;&quot; +
+            &quot;client_id=javalin&amp;&quot; +
+            &quot;redirect_uri=http://localhost:$port/auth_redirect&quot;
+    return &quot;&quot;&quot;
+            &lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body style=&quot;background-color:black&quot;&gt;&lt;a href=&quot;$url&quot; target=&quot;_self&quot;&gt;&lt;button class=&quot;btn&quot;&gt;Login&lt;/button&gt;&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;
+        &quot;&quot;&quot;.trimIndent()
+}
+</code></pre>
+<p>There is a simple a tag that issues a get request when clicked. The target is this keycloak url and we need to pass in some parameters, for example which client we are or which redirect we want to receive after a login.</p>
+<p>Then the validation method for the key.</p>
+<pre><code class="language-kotlin">fun validateAccessToken(publicKey: PublicKey, accessToken: String?) {
+    accessToken ?: throw InvalidTokenException(IllegalStateException())
+
+    try {
+        val parsed: Claims = Jwts.parser().verifyWith(publicKey).build().parseSignedClaims(accessToken).payload
+    } catch (e: Exception) {
+        throw InvalidTokenException(e)
+    }
+}
+</code></pre>
+<p>No key? No access. Even though I am normally all against exceptions, this is one of the nice usecases where blowing up the call stack is the desired behaviour. Only thing to ensure is that this single type of exception is treated properly. As you can see above in <em>step 2a</em>, it's very easy to do so.</p>
+<h3>Wrap-up</h3>
+<p>And that's about it. Not that complicated. There are some more essential additions like <em>refresh tokens</em> or maybe one or two flows. But my impression is, that besides the simplest possible application, there is just a ton of additional stuff and variants, options, configs and facets that blow up this whole auth topic enourmously. How many different algorithms do we need to verify the integrity of a key. How many flows could we possibly need. I still remember the good old days where we developed apps with a user table, everyone used password auth and everyone rolled their own authorization layer. I have to admit I liked that :)</p>
+<p>Alas, you can find the repository containing all the code <a href="https://github.com/hannomalie/javalin-keycloak-oidc">here</a>.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
