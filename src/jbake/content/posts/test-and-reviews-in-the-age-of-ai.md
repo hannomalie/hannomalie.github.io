@@ -1,5 +1,5 @@
 title=Tests (and reviews) in the age of AI
-date=2024-06-28
+date=2025-06-28
 type=post
 tags=workflow,architecture,design
 status=published
