@@ -1,0 +1,169 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    <title>Hannos Blog</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+    <noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+</head>	<body class="is-preload">
+
+        <div id="wrapper" class="fade-in">
+            <header id="header">
+                <a href="../index.html" class="logo">Hannos Blog</a>
+            </header>
+
+            <nav id="nav">
+    <ul class="links">
+        <li><a href="../index.html">Blog</a></li>
+        <li><a href="../archive.html">Archive</a></li>
+        <li><a href="../aboutme.html">About me</a></li>
+        <li class="active"><a href="../posts/squeezing-java-memorysegment.html">Squeezing Java&#39;s MemorySegment</a></li>
+    </ul>
+</nav>
+
+            <div id="main">
+                <section class="post">
+    <header class="major">
+        <span class="date">2025-08-09</span>
+        <h1>Squeezing Java&#39;s MemorySegment</h1>
+        <p></p>
+    </header>
+            <p><h2>TLDR</h2>
+<ul>
+<li>MemorySegment api is obviously nicer as working manually with raw integers as pointers</li>
+<li>It doesn't matter much for my usecase, because it's hidden behind Kotlin properties</li>
+<li>The new memory api is slower than Unsafe for my usecase, likely for most games or rendering usecases</li>
+</ul>
+<h2>Introduction</h2>
+<p>It has been some time since I started experimenting with <strong>native memory access on the JVM</strong>, shockingly <a href="https://hannomalie.github.io/posts/2018-09-17-structs-jvm.html">seven years</a>, can you believe that? It's even <a href="https://github.com/hannomalie/kotlin-foreign-memory-access">five years</a> since last time I married Java's new foreign memory api with my struct generation library - funny that the api is still in preview, even after all these years :)</p>
+<p>But given it's largely finished and won't change much anymore, I gave it another try. And reated a very minimalistic implementation of a game engine that implements multithreaded rendering, as I described ... damn, also <a href="https://hannomalie.github.io/posts/2017-18-14-multithreaded-game-engines.html">nearly eight years ago</a>. Additionally, it has a very simplistic implementation of an entity component system (yes, yes, I know...) that fits the situation best.</p>
+<h2>Multithreading</h2>
+<p>The idea of the extractor pattern is easy: Your game world gets updated at an arbitrary rate and at the end of the cycle, the state relevant for rendering gets extracted and attached to a <em>frame</em>. You can create n frames that can be put in a queue for the render thread to pull them and render them - also in another, arbitrary rate, but ideally fast enough to keep up with the producing thread, or we need to skip frames. A frame is a complete immutable snapshot of the world state and can be rendered independently.</p>
+<p>But we might not forget that this comes at a cost: A frame needs to be a pure copy of the world state, the update threads may never touch the data the rendering might still be consuming.</p>
+<p>So two things: First, it simply costs memory, that needs to be allocated. Then, the data lives on the CPU side, but rendering happens on the GPU. When no shared memory is present (which was common until recently) then we need to transfer a lot of data. Those two things have two consequences: We need a special allocator for frame memory and gpu memory. And the memory needs to be synchronized/fenced between CPU and GPU.</p>
+<p>For that, we need native memory access, there's no way to do efficient gpu stuff without it. Managed heap data cannot be used directly to feed the GPU, we would need to traverse our object graphs manually and extract the bytes and put them in a buffer otherwise. That's possible at high speed (I did so in <a href="https://github.com/hannomalie/hpengine">hpengine</a>). And maybe it's even a dumb idea to not distinguish between cpu memory layout and gpu memory layout. But <em>given</em> it was a good idea, it would make the whole extracion step just a simple <em>memcopy</em> and therefore much faster and prettier.</p>
+<h2>Structs and pointers via MemoryLayout and MemorySegment</h2>
+<p>While frowned upon, the JVM had a very efficient solution for accessing native memory in the form of <em>Unsafe</em>. You dealt with byte buffers by accessing them through pointers, denoted with an int primitive. Simply. Out of bounds access resulted in seg faults, hence the word unsafe. The performance is pretty much on par with what C offers, while similarly risky.</p>
+<p>The new official solution for native memory access on the JVM of course <em>can't</em> simply be that unsafe. So there was an API built that aims to provide safety by compromising a bit of performance. Instead of a construct comparable to void pointer in C, we get something like a <a href="https://stackoverflow.com/questions/45723819/what-is-a-span-and-when-should-i-use-one">span</a>, just a bit different. A MemorySegment is only a pointer to memory and the amount of bytes it has. Whether the segment is a subsegment or a seperate buffer is unknown and irrelevant. The info is used to determine out of bounds access in order to prevent segmentation faults.</p>
+<p>The idea of MemoryLayout however is to describe a bunch of bytes with a layout, like you would type it when defining a struct in C. And then you either have a simple layout or a sequence layout, containing multiple entries of simple layout kinds, like an array.</p>
+<h3>Components defined with MemoryLayout</h3>
+<p>In <em>rebirth</em>, I modeled a 2D position component with this layout definition</p>
+<pre><code class="language-kotlin">val layout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_FLOAT.withName(&quot;x&quot;),
+    ValueLayout.JAVA_FLOAT.withName(&quot;y&quot;)
+)
+</code></pre>
+<p>We can then derive VarHandles from that layout, which are a JVM-native construct that lets you access various properties, functions, dynamically generated method implementation, or like in this case is t an accessor into some underlying data structure.</p>
+<pre><code class="language-kotlin">val xHandle = layout.varHandle(groupElement(&quot;x&quot;))
+val yHandle = layout.varHandle(groupElement(&quot;y&quot;))
+</code></pre>
+<p>Like in my struct generation library, in Kotlin, we use a sliding window that is like a typed pointer, which in rebirth looks like this:</p>
+<pre><code class="language-kotlin">class PositionComponent {
+    context(segment: MemorySegment)
+    var x: Float
+        get() = xHandle.get(segment, 0) as Float
+        set(value) = xHandle.set(segment, 0, value)
+
+    context(segment: MemorySegment)
+    var y: Float
+        get() = yHandle.get(segment, 0) as Float
+        set(value) = yHandle.set(segment, 0, value)
+}
+</code></pre>
+<p>Note the context parameter - this is a parameter that gets passed into the function call or is used for the property access on the call site, without the need to explicitly pass it in. As long as there is a MemorySegment present on the call site, the propery access will use it automatically, like so:</p>
+<pre><code class="language-kotlin">world.forEach&lt;PositionComponent&gt; { entityId, position -&gt;
+    println(position.x)
+}
+</code></pre>
+<p>on the <em>world</em>, this finds the system that contains all the PositionComponent instances and uses a single sliding window instance, which is the position parameter in the lambda. A component is only valid in the current iteration, those may never be saved, only the entityId - the handle - may be saved, as usual in ECS or games in general. The type of the lambda is actually <code>context(MemorySegment) (Int, T) -&gt; Unit</code> which means the MemorySegment gets passed into the property accessor automatically, as described above. Of course, quite unfamiliar for someone who has never seen Scala (or Kotlin), but I would say quite elegant and ideal for eliminating the need to pass around the base pointer.</p>
+<h3>Components allocated with SequenceLayout</h3>
+<p>The component array itself is allocated like this:</p>
+<pre><code class="language-kotlin">val baseLayout: layout // the layout from above
+var componentsLayout = MemoryLayout.sequenceLayout(entities.size.toLong(), baseLayout)
+    private set
+var components = arena.allocate(componentsLayout) // This is the global arena from the game world
+</code></pre>
+<h2>Performance / Profiling</h2>
+<p>Prepare for nasty surprises. If there is only a single element ever, it's easy, only one MemorySegment. When you have a sequence, let's say 100k game objects, then you have... yes, 100k MemorySegments. For iteration there are nice APIs, could be done like <code>components.elements(baseLayout).forEach { memorySegment -&gt; ... }</code> or like this:</p>
+<pre><code class="language-kotlin">(0 until componentsLayout.elementCount().toInt()).map {
+    context(components.asSlice(baseLayout.byteSize() * it, baseLayout)) {
+        block(it, componentType as T)
+    }
+}
+</code></pre>
+<p>And while this looks nice, it will <em>tank</em> the performance, because the termporarily needed MemorySegments get heap allocated and in 10 seconds of runtime, caused at least 10 garbage collections of 10-20ms for me, which means not suited for soft-realtime applications anymore (for the 100k entities test case).</p>
+<p>This might be because the JVM still lacks proper value types, but one would have guessed that escape analysis will prevent the allocations, because, well, a MemorySegment should not be much more than a <em>span</em> at all, so two int numbers at best. I countered that by precomputing all MemorySegments once, only when the components change in some way by adding or remving an entity or a component. This is ugly and wasteful, but stopped any garbage collection from happening.</p>
+<p>Then, almost all of the samples in my profiling where somewhere inside the memorysegment accessor apis or in the lambda machinery of the var handles. The amount of different hot spots give me the impression that whatever is done at runtime is too complex to get properly inlined and eliminated, even though this should really not be more than a simple out of bounds check once before an iteration is done over an array.</p>
+<p>Old material showed a big panelty for the new memory api, latest benchmarks like <a href="https://inside.java/2025/06/12/ffm-vs-unsafe/">this one</a> show that the gap is close to disappearing for at least some applications. My profiling doesn't look like that, but since I can't deduce any info needed for a true comparison without having reference implementation with Unsafe as well, I have to not read anything into the wild profiling results and instead take a look at the runtime data I can measure. Running the implementation for <strong>120k entities</strong> had the whole cycle being <strong>~0.0025ms</strong> running on <strong>16 threads</strong>, consisting of <strong>0.02ms</strong> for the systems update and <strong>0.005ms</strong> for the extraction of the frame data, aka copying the buffers for rendering. For <strong>1.2 million entities</strong>, we're at <strong>0.03</strong> to <strong>0.04 ms</strong>. Running it on a <strong>single thread</strong> only, brings it up to <strong>~0.125ms</strong> for <strong>1.2 million</strong> entities.</p>
+<p>This is on an undocked <em>Ryzen 7 7840U notebook</em>.</p>
+<p>All the update method does is</p>
+<pre><code class="language-kotlin">parallelForEach&lt;PositionVelocity&gt; { index, component -&gt;
+    val position = component.position
+    val velocity = component.velocity
+
+    var resultingX = position.x + velocity.x * deltaSeconds
+    var resultingY = position.y + velocity.y * deltaSeconds
+
+    if(resultingX &gt; dimension.width.toFloat()) {
+        resultingX = 0f
+    } else if(resultingX &lt; 0) {
+        resultingX = dimension.width.toFloat()
+    }
+    if(resultingY &gt; dimension.height.toFloat()) {
+        resultingY = 0f
+    } else if(resultingY &lt; 0) {
+        resultingY = dimension.height.toFloat()
+    }
+
+    position.x = resultingX
+    position.y = resultingY
+}
+</code></pre>
+<p>So only some minor float comparisons against more or less static values per entity and then setting a new position based on entity's velocity. Note that this goes straight into offheap memory that is then copied over for the gpu. So while 120k entities take 0.02ms, it takes around 0.2ms for 1.2 million entites - so around 12 million entities of such a kind can get updated in a 2ms budget, which means 500 times per second. Probably not entirely true, because memory effects will start showing up, but we cannot really change anything about it one or the other way around and we have an idea about the performance now.</p>
+<p>The ideal would be to compare the whole implementation against a - let's say - C implementation that is as bare metal as possible, but that's out of reach for me right now. Instead, I can compare it to an implementation based on good old Unsafe. Unsafe itself is only a very tiny layer on top of native code, as are ByteBuffers.</p>
+<p>ByteBuffers per se have the disadvantage that they contain a position property, so we can't simply use multiple threads, because the position would be mutated from multiple threads then. So the simplest possible implementation would be <strong>single threaded</strong> only: The same setup with <strong>120k entities</strong> takes <strong>~0.001ms</strong>. For 1.2 million we're at <strong>0.004</strong> to <strong>0.015ms</strong>. So it is a good chunk faster then MemorySegments in my case, roughly an order of magnitude, which makes me a bit sad.</p>
+<p>In order to make ByteBuffers usable with multithreading, I created an artificial MemorySegment type that holds a ByteBuffer and a (mutable) position property. <strong>1.2 mio entities</strong> on <strong>16 threads</strong> brings the update time to <strong>0.03ms</strong>, so it scales roughly in the same way as the native MemorySegment implementation. It's also very close to the other implementation in terms of performance, only a few percentages difference.</p>
+<p>On the other hand ByteBuffers as they are right now have two disadvantages that need to be said. First, they can't be cleaned up, so I managed to get out of memory because even when finished rendering, the buffers couldn't get freed manually. Second, they have the allocation limit of 2Gb.</p>
+<blockquote>
+<p><strong><em>NOTE:</em></strong> Intersting fun fact: When converting the MemorySegment implementation to raw integer &quot;pointers&quot;, of course I made exactly the mistakes the new API would protect you from: Wrong byte offsets, wrong interpretation of integer types, confusing bits and bytes etc. Even though I implemented such a thing already at least once before.</p>
+</blockquote>
+<h2>Closing words</h2>
+<p>The last paragraph more or less says it all, the performance turns out not be on par for both the MemorySegment and the Unsafe implementation. The gap is not especially big, there's also some variance, so in no way a clean, representable benchmark, but all in all it gets us a rough idea.</p>
+<p>The MemorySegment api is of course nicer than using integers as pointers for the poor people, but it's also not as nice as I would want it to be. For example the VarHandle has no generic types or has specific implementation. That results in statements like <code>xHandle.get(segment, 0) as Float</code> where unsafe casting is needed all the time. This would be one of the first things I would write Kotlin property delegates around to make it type safe. Or the <code>get</code> method takes a vararg parameter of type <code>Object</code>. Whatever handle it is, one has to pass different things into it in correct order and you need to read the javadocs to find out what exactly needs to be done. I really don't like those kind of APIs.</p>
+<p>Other than that, the API might be nice, but I do hide all that in automatically generated code, so it doesn't really matter at all for me. What matters more is performance. On the plus side, we have the allocation limit of 2Gb that ByteBuffers come with, removed.</p>
+<p>The repository is <a href="https://github.com/hannomalie/rebirth">here</a> and the branch for the unsafe implementation is named <em>unsafe</em>. All in all, not much difference for me with the new API, but since the current state is the worst it will ever be, we can expect it to get better over time and at least better and officially supported, contrary to the Unsafe api, which is already in the process of getting phased out.</p>
+</p>
+</section>
+            </div>
+
+            <footer id="footer">
+    <section class="split contact">
+        <section>
+            <h3>Social</h3>
+            <ul class="icons alt">
+                <li><a href="https://twitter.com/hannomalie1" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+                <li><a href="https://github.com/hannomalie" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                <li><a href="https://bitbucket.org/hannespernpeintner/" class="icon brands alt fa-bitbucket"><span class="label">GitHub</span></a></li>
+            </ul>
+        </section>
+    </section>
+</footer>
+
+<div id="copyright">
+    <ul>
+        <li>&copy; 2021</li>
+        <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>
+        <li><a href="https://jbake.org/">JBake</a></li>
+    </ul>
+</div>        </div>
+
+        <script src="../assets/js/jquery.min.js"></script>
+<script src="../assets/js/jquery.scrollex.min.js"></script>
+<script src="../assets/js/jquery.scrolly.min.js"></script>
+<script src="../assets/js/browser.min.js"></script>
+<script src="../assets/js/breakpoints.min.js"></script>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/main.js"></script>
+	</body>
+</html>
