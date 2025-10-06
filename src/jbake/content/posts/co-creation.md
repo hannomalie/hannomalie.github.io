@@ -1,0 +1,444 @@
+title=Fix your teams, do co-creation!
+date=2025-10-06
+type=post
+tags=design,coding,workflow
+status=published
+headline=Fix your teams, do co-creation!
+summary=For twenty years, the misinformation and blind dismissal of co-creation in software development is absurd. Let's talk.
+~~~~~~
+## TLDR
+
+- [This article](https://www.infoq.com/articles/co-creation-patterns-software-development/) is essential read for every developer
+- Quality means "amount of feedback processed to form the code"
+- Asynchronous blocking code reviews struggle with either quality or throughput
+- Co-creation can maximize both
+- Co-creation should be the default workflow in software development
+- Co-creation was _the_ key to high quality in all my projects
+- MR based ways of working prevent refactorings due to constant work-in-progress, conflicts and MR sizes
+
+## Introduction
+
+Rarely has a topic been so important, yet so controversial in my whole engineering carrer: __Co-creation__.
+__Pair__ or __mob/ensemble programming__.
+
+You want to know why all the software out there sucks? Why the __quality__ gets lower and lower?
+I have very bad news for you. It's because of the way we __create__ it.
+
+I wonder whether any other confession rediscovers the good lost art from the past of itself as often as software
+development does. Engineers, sadly seemingly not all, reach a point in their career where they exhausted
+all the blind enthusiasm about new things and realize, that a lot - really a lot - of solutions of a time have always been
+or became worse than what there was before. Let's start with a twitter post by Mitchell Hashimoto, one of the most skilled
+and most humble (and therefore one of the best) famous engineers we have:
+
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Look, say what you will about it, but right click editing a PHP file in an FTP client with upload-on-save is still the tightest and fastest feedback loop I&#39;ve ever had in my life. We actually don&#39;t know how to do this anymore as an industry.</p>&mdash; Mitchell Hashimoto (@mitchellh) <a href="https://twitter.com/mitchellh/status/1969525278398619787?ref_src=twsrc%5Etfw">September 20, 2025</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+Short feedback loop is __the__ thing to optimize for in software development. Experience in about
+every aspect of human life where complex things (that are hard to plan or anticipate) need to happen showed us.
+
+How is it possible that we had a feedback loop that literally was 5 seconds back in 2005 and 20 years later
+it is quite common to have a feedback loop of 30 minutes, if possible at all because developers
+are not allowed to do deployments anymore?
+
+People will argue that we can't do that comparison, because modern wofklows have so many properties the php-ftp-sync
+hasn't. They will tell you that it doesn't have version control. That it isn't GitOps. That you don't have code review.
+That you don't run tests. That you don't qa in a demo environment. And many things more. And they will argue
+that all those things are strictly necessary for good reasons.
+
+But what they don't tell you, is the _cost_ that comes with those potential values. That's for two reasons.
+
+First, __they don't know the costs__. Software engineers typically have no measurements for anything they do,
+their behaviour is based on their
+gut feeling they built up with their personal, unique and biased experince and loudly argumenting based on theory.
+By theory I mean that most people have experience of a certain way of doing something. But they lack experience with
+the alternatives, so they argue against those unknown alternatives based on their imagination of what the variant must be.
+Asking for data however, is an ugly move and I usually don't like it. Often it's a lot of effort to get reliable data. Also often, it would be
+sufficient when people take a sober look at things and be honest to themselves. Causalities are often rather easy to spot,
+when people don't want to hide them deliberately.
+
+Second, because they either have __no or a bad concept of cost__. To put it blatantly, most software engineers I worked
+with over my career are egocentric. They see themselves as employees that deserve all and owe nothing and their wellbeing
+as an employee is what is most important for them. A different tech stack is a good idea? Oh, well, without me, it's more
+important for me to stay in my comfort zone instead of supporting what would be the best choice for the rest of the company.
+Pair programming? Oh well, without me, I like to hear music when I code and I also want to be alone, I like it calm.
+This is not a problem, because it's not _their_ money that they waste. If it was _their_ own money, they would think
+differently - which is why the vast majority of rails keynotes David Heinemeier Hansson gave over the last 15 years
+are pure gold and a must-watch to understand and recognize the insanity that dominates our industry. The fact that
+in the past everyone and his aunt got hired as a developer because the demand was so immense didn't make anything better
+in this regard.
+
+What Mitchell wrote in that post is really only one example, there are hundrets of examples for the simple question:
+
+__Is the value of what I do really high enough to justify the cost?__
+
+## Software quality and the problem with merge requests
+
+Quality is so important, but what even is _quality_? This post risks getting too long, so I cheat a bit:
+[This post is the essential read](https://www.infoq.com/articles/co-creation-patterns-software-development/)
+for everyone who claims to be a professional software developer. 
+It gives an answer to the question what quality is and how it can be integral part of our way of working.
+And also why our industry's default workflow with blocking asynchronous code reviews struggles so much
+making it one.
+It doesn't really matter whether you have an opinion
+on the topic already or not, if you haven't read this post yet, then you are most likely not qualified to have an opinion.
+This may sound entitled, but it really it's not and if you are offended by that, you should really read the article.
+
+I am snarky here, because I can't count the times I was forced to have discussions about the topic
+with people who claimed to be senior software engineers but didn't even had the basic knowledge about anything
+that is relevant to have a profound disussion at all. The statements in the article are based on actual data,
+which means it outperforms the average-developers gut feeling about things.
+The author analyzed over 40,000 PRs from more than 40 very active repositories of product development teams doing 
+PR-based async code reviews.
+
+I quote from the article:
+
+> The bigger the PR, the more likely it will suffer from the so-called “LGTM syndrome”.
+If the PR is big, reviewers have way less incentive to build in the quality.
+
+Even though this is nothing that comes as a surprise. I bet every honest developer prefers smaller pull requests for
+review.
+
+What I find really interesting is that we can understand the abstract and often debated term _quality_ simply
+as __"amount of feedback processed to form the code"__. For me, this is the only objective take on what quality actually
+is that I was ever able to come up with.
+
+Then why not just do small PRs, everyone knows they are best, right? Hope you read the article. It states
+
+> As we can see from this scatter plot, as we decrease the size of a PR, teams doing async code reviews incurred 
+exponentially longer wait times per PR size. [...] As we incur more wait time per PR size, we incur more waste per PR, 
+leading to more cumulative waste in our system of work. So, as we keep reducing PR size, we exponentially constrain 
+our ability to push changes through the system of work.
+
+This is very important. We reduce the amount of work our process can accomplish. Do we remember that someone else
+is paying the cost of that? If you were the business owner. Would you think it's acceptable that your employees
+create bad quality by doing large merge request because they don't feel like doing small steps? If you were a business
+owner, do you think it's acceptable that you only get half the work done because people don't want to co-create and
+work together because they prefer to work alone?
+
+The conclusion from the article:
+
+> So, with the async way of working, we’re forced to make a trade-off between losing quality (big PRs) and losing throughput (small PRs).
+
+When we now imagine that not only the choice of a workflow determines the quality alone, but also factor in
+a dozen other things that degrade quality with small PRs, like bad communication, missing nuances of written communication,
+rockstar-engineers, time pressure,
+bad integration pipelines and so on, then we know why software development always takes too much time and the result is
+always shit.
+
+Let's finally look at another aspect that is oftentimes unrecognized:
+
+> Another issue with delays and the async way of working is that they make it more likely for people to pull in more things, 
+increasing Work in Process (WIP) inventory and context-switching
+
+And I bet you have experienced that as well. What I found stresses people around me most is the fact that they juggle
+too many things at once. Why do they? Because those things are not finished, so they can't put them away, they keep them in their head.
+They are blocked and waiting hungry. When things are blocked by external forces, then I won't say too much here, but I don't even have to,
+because in most teams I worked they did a very good job at blocking each other _within the team_, which is ridiculous when
+you think about it. It's certainly what stresses _me_ most - too many unfinished things in progress at once.
+
+## Co-creation
+
+Nothing gets us started better than another except from the article.
+
+> when there’s an outage in production, how do we go about it? Typically, all the people needed to resolve the issue jump on a call and work together to resolve it.
+The reason we’re working in this way is that we want to resolve the issue sooner, so we can reduce the time to recover and thus minimize the impact.
+But the important insight is that we can use the same way of working to minimize the lead time to deliver.
+[...] The rules used during emergencies violate our standard rules and challenge unquestioned assumptions, 
+but we rarely ask ourselves if our “special rules” should actually be our standard rules.
+
+When we do those emergencies, what are our targets? From the top of the dome, a few ideas:
+
+1. Multiple pairs of eyes to prevent slips
+2. Sharing knowledge about what is important
+3. Reviews without creating any artificial delays
+3. Bringing all needed competencies to the table
+
+isn't it crazy that those are the exact same qualities that we expect for our standard work as well?
+
+By eliminating the transaction cost PRs create by simply not doing them, we can have feedback for every 
+line of code. For every character change. The feedback can be given right the second after the line of code
+was written. Remember the definition of _quality_ above? We maximized our quality.
+
+My experience is that this approach leads to __exceptionally good__ projects. They have very few bugs and
+people on the team enjoy working on them. Stakeholders and product people are often stunned by how well they go.
+Scrum masters are surprised by how well of a team builds around them.
+It really sounds like a gospel but: 
+
+I had the rare chance of being able to do __side-by-side comparisons__
+of very similar projects that only really differed in async PRs/co-creation and it just seconded everything that is written
+in that article. The pair programmed one (A) had close to no bugs, while the other one (B) had an uncountable amount of bugs.
+A had tests that were readable as documentation and specifications that rarely if ever broke when refactoring.
+B had the opposite - unreadable unit tests that broke every time we changed the project. A had close to no noise thanks
+to dry and cozy abstractions. B consisted of 80% noise, which I actually removed afterwards, not exeggerating.
+It was such a day and night difference, that I consider pair and ensemble programming
+as the most important differentiator that makes a project _awesome_ or _shitty_.
+
+## Frequently brought up arguments
+
+As mentioned there is always so much discussion about the topic that annoyed the hell out of me in the past.
+The important point is not to always do pair programming. The important part is to understand when it's a good
+idea not to do it and then also understand the _cost_ of that decision. And _if_ people don't want to do it,
+then I expect us to apply some other mechanisms to compensate for the loss in quality and throughput.
+The article brings it to the point: _Our industry just has the wrong defaults._
+
+Let's take a look at statements I personally encountered over the years and what I have to say.
+
+### Two people do work of one, that's wasteful
+
+That's a false premise here. Two people together don't do the work one person does. You ever heard the saying 
+_more than the sum of their parts_? When two people do some work together, than what happens is that they both
+contribute their strengths and are faster together. It's possible that this is not the case immediately from the beginning
+and yes, if you have people that would really do their best not to work well together than they will take more time
+to finish the work. You know what my experience is? Such a bad scenario _never_ happened, what _always_ happened is that the work
+was finished faster. Every time. So here we have what I mentioned above, a theoretical thing that people bring up
+to win an argument. Even if it takes 1,5 times the time to finish the work, the net sum is still positive, because you know
+what? Besides _the work_ we have done something that is oftentimes even worth much more than the original job: We
+strengthened collaboration. We invested in building better relationships in the team, making the team more efficient
+step by step. We caused communication to happen, which makes people understand each other better. If you factor
+all that in, it's just incredible what value it creates. So no, it's _not_ wasteful. It's only wasteful if you pretend
+there is no value in collaboration, which is a hint you are simply a bad team player.
+
+### We can work faster in parallel
+
+In the same spirit as the paragraph above, this is a flawed argument. The work that could only theoretically done in parallel
+is usually part of a bigger piece of work which was prioritized. The prevalent way of working applied is called
+scatter-gather. [Here](https://www.industriallogic.com/blog/scatter-gather/) is an excellent article about
+the shortcomings of that approach. It results in developers creating pieces of work rather than an integrated solution
+with end-to-end-responsibility. It discourages collaboration and forms silos. It creates a lot of pre-design effort.
+Status is obscured, nobody ever sees a proper increment of a solution until all work pacakges are finished.
+
+There are just so many downsides flying below the radar with that way of working because nobody is able to make
+them transparent. Based on my experience, even if any project manages to be finished on time - first, we simply can't
+know whether it wouldn't have been finished faster by working different. And second, Conway's law hits brutally and
+the result is a software system that resembles the communication of the organisation that built it: Artificially 
+cut into pieces and decoupled to the max,
+bureaucratic communication between components, much more volume than necessary and large gaps between style and quality
+of components. A true enterprise project.
+
+Given the amount of wait time the _normal_ workflow creates, I never experienced it to be _faster_ in particular. I don't
+know how people are able to know that one way is faster than the other, given _the other_ one was never tried. But given
+the amount of wait time I observed in my teams, it was clear that the stories done in pairing have been delivered faster all the time.
+
+### Pairing is exhausting
+
+This is a very important point. For a lot of people, this is absolutely true. I experienced first hand, that people
+signaled they are exhausted after pairing sessions. For me, this is just so natural, that I can't see how this
+is not absolutely obvious.
+
+First, pairing tends to be very intense work, that's why it's so productive. Of course doing intense work and getting
+much stuff done is more exhausting than laying low and do a mix of slacking and working. Who would have guessed that.
+
+Second, if you don't do breaks and recover or vary your work, this is of course exhausting as well.
+The important point is, that we can simply say that we're exhausted. Or even prevent that state by doing breaks on
+a regular basis. You know that's recommended one or the other way around, to refocus again, not getting work-blind,
+relax the eyes, getting our mails answered and so on.
+A lot of people assume that it's strictly necessary to pair 8 hours a day and work like a horse.
+It's simply a false assumption. We can take care of every person's individual needs easily by communicating
+them and taking care, easy. And don't make the mistake to think that people are equal - I had a colleague who
+was more like me and enjoyed very long pairing sessions only interrupted by some 5-minutes-coffee-grab-breaks.
+At the end of the day, we were satisfied, none of us was exhausted.
+
+The bottom line is: Pairing is not exhausting, unless you're doing it wrong.
+
+### Wait time "is just normal"
+
+I was often part of teams where wait time was dominating the lead times. We had the classic dilemma of big versus
+small pull requests. Once when I pointed out that our work is waiting most of the time in one team, a colleague
+told me that this is just how coding works and that it doesn't matter. 
+
+Wow. So the idea was that it doesn't matter that
+product people and customers had to wait longer to get the features in their hand. That we had to wait longer
+until our work turned from waste to value. That we increase the risk of rework needed because work in progress
+had conflicts. That we had to wait longer until our work gets us actual feedback.
+
+I find this take so ignorant, that I don't know what to even answer here. It's __not__ normal. It's a consequence
+of the way __we decided to work__. We are responsible for that. Only because everyone is used to that way
+of working and only because everyone is doing it like that doesn't mean it's _normal_. Maybe our industry
+is not normal anymore. We have to objectively treat wait time and worse feedback loop as a property of the chosen
+workflow and it should be considered when a workflow or process is chosen. Co-creation approaches _zero_ wait time,
+so what is the excuse for preferring to be "normal" instead of "excellent"?
+
+### Pairing is not review
+
+In the same context as the above, the colleague argued that pairing lacks review.
+
+This is another take that is so unbelievably ignorant and misinformed that I am close to throwing up.
+
+What exactly is a review? You have an amount of code and then you take some views with one or more people on it
+and state what could be ehanced or what needs to be considered additionally. Pull requests struggle already with
+the _amount_, as described above, througput vs quality. In pairing, the granularity can be a single line of code,
+hell even a single character. Because the transaction cost is zero, the feedback can be given right the second
+the code was written. That builds in quality, after the definition of quality we had above. What is the difference between
+when person A writes two lines of code, person B immediately gives feedback (which could be empty) and when someone
+creates a pull request with two lines of code and asks for some review in the slack channel? There is no difference,
+both are _reviews_, but one is factors more efficient.
+
+### Async PR reviews can better spot slips
+
+Based on which data? Is it possible that people claiming such a thing only have experience with MRs and no (proper) experience with
+pairing? And given they had slips found in MR reviews they concluded it is the better way to spot them?
+
+Slips may more likely be spotted by the person not writing the code. But it doesn't matter
+whether the second person reads the code when it is written versus when he reads it as a whole afterwards. If at all,
+slips are more likely to be overlooked by the second person also as a slip because
+of the LGTM effect of increasing PR size. Both ways of reviewing need a certain amount of concentration and that's simply
+it. If you are sleeping in the pairing session while your colleague is typing the code, then yes, you won't spot
+any mistakes.
+
+### Code should be reviewed by someone without context
+
+Aha. Why? The missing context creates the biggest additional effort when reviewing. Who are you to decide that this enourmous
+effort is worth anything, what exactly would it enhance? That someone who does not have any context is better able to
+understand the produced code? Well, what we can say for sure is that the code is easier to understand for the exact
+same person that does the review after this very person's feedback was applied. Everything else is more or less speculation.
+The truth is that review doesn't happen _without_ context. It's happening with a _different_ context. And that is different
+for the next person, the other person, the new hire and everyone equally. Do you really want to triple the amount
+of time work needs in order to have an unknown probability that the code will be easier to understand for people
+that may or may not have a similar context like the reviewer? No. It's the old game about creating a lot of effort
+and cost with questionable return of investment.
+
+What we really want is to collaborate and approximate our contexts in the team, so that we share the same values,
+develop the same attitudes, understand everyone else's thoughts better and get more flexible in what options we have
+to produce code that pleases potentially everyone. No surprise, that's what pairing or ensemble programming do.
+
+### seniors don't need pairing
+
+Not only can we see this take often on reddit, but I also encountered people saying this in real life, I am not kidding.
+The first thing I observed is that the people saying this never were the seniors they thought they were.
+
+But even if they would have been, this take is absolutely ridiculous. You know what? I am also the fastest and best when
+I can just work alone, nobody bothers me with feedback and I don't have to ask anybody for permission. Then the result
+will be perfect - for people that are exactly like me. Sad that there is only one of each of us, right? Pairing
+is maximizing the quality, as we defined above. Are seniors excluded from the need to learn from others? There's
+_always_ stuff to learn. Even if a super senior person pairs with an absolute rookie, he has the chance to learn
+about how freshmen learn, what struggles are real for new hires or other junior developers. What could become documentation
+or automated. Often, it's much more than that - even experienced people can learn details about the programming language
+they never stumbled over, different theoretical background or synergies from people who worked in a different craft.
+And furthermore, we're not talking about learning opportunities for the senior. The seniors duty is getting the
+beginner up to speed as fast as possible. The biggest potential gain in efficiency for the team (!) is by closing
+the gap between senior and junior.
+
+### it doesn't make sense to always do pairing
+
+Very true. And nobody ever asked for it. What people ask for is adjusting our defaults. When there is work that isn't
+expected to gain much value from pairing, than simply do it alone, what's the problem. Keep in mind though that we're not
+talking about creating value but also the need to prevent creating waste. Remember that stuff is finished when it gets
+into the user's hands? When lead time of a piece of work is 90% wait time, then it would probably be better to just
+do it in a pair in 5 minutes and done with it, right? In my experience, as soon as there is work that should be done alone, 
+this work should not require a blocking review. In the past, I suggested we do that work, create a merge request, merge it
+and post the merge request for an optional review into a low-prio slack channel. So that people can take a look when
+they have a short coffee break or whatever. At some point in time, we only did so when there was anything interesting
+in the merge request. Small typos or maybe a better variable name was applied by the reviewer before merge and done.
+Nobody cared about that stuff much and we often talked about minor stuff like that in either pairing or coffee rounds.
+This worked _great_. I mean _absolutely great_. Even though some on the team were sceptical
+first, because they never worked like that. Of course you will get into trouble when you incorrectly
+classified work to not need pairing or second pair of eyes/review. But even _if_ that happens, why can't we just agree
+that we do that experiment and when we _really_ create issues with it, we ditch it again? After one new colleague
+realized that he had to learn a lot more before working "alone" on the team, we decided to not do the normal merge
+request workflow with him and instead he paired with people on the team. Of course that worked much better.
+
+Here is a twitter post of a well-known developer from the games and graphics area with over 20 years of experience
+working at the biggest companies you know, including Apple, PlayStation studios, the Call of Duty studio and so on.
+
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">I shipped all the games going back to the 1900s, and the graphics SDK for PS4, without anyone ever conducting one code review <a href="https://t.co/D3vqSCSKnh">https://t.co/D3vqSCSKnh</a></p>&mdash; bmcnett (@bmcnett) <a href="https://twitter.com/bmcnett/status/1755773965908533621?ref_src=twsrc%5Etfw">February 9, 2024</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+But sure. We can't fix a typo or extract a function in our crud webapp without blocking a day for a code review.
+We have to recognize our insanity.
+
+### we cannot work with 4 people together
+
+Yes, you can. When you are grown-up and professional, you can. If you can't, then the problem is most probably you.
+When you have 4 people in a call - and it doesn't matter whether we're ensemble coding or having a serious
+discussion or a chatty chat - then you need to have some communication skills, that's for sure. There should be a
+balance between who talks most, between who decides most, between who actually types the chars. Getting over and
+benefitting from differences between people is key for effective teams. Is that always fun? No. Are we getting paid
+to have fun? Also no. But there's always a way to get to better results. When you really can't do ensemble,
+you are probably not going to be the most effective team anyways.
+Then try to go with pairing in rotating groups. If you are not happy with that, try to find the reasons and then
+try to make people happy but be clear about the costs. For example I suggested to then bite the bullet and built subteams
+of pairs. Of course a lot of people complain about that, because it surely is not an ideal solution, but what else
+do they have to offer? A team of 6 teams, one person each? That's the reality of most teams that work in isolation
+with merge request based workflows anyways, so don't tell me subteams are bad. There's a lot of stuff that could be
+done to enhance a lot of important properties of our development, when we were just open for controversial and unusual
+ideas.
+
+### we can't have individual schedules
+
+Wrong. First of all, you are on a team and you get paid why do you need an individual schedule? Then, the only thing
+you need is around 4 hours of overlapping time with a colleague. If you cannot afford that on a regular basis,
+then there is something sincerely odd with you. Note that we're not talking about some artificial time zone
+difference or an exception to the rule here and there. We're talking about the normal case of a people in a team.
+Second, with pairing as well as with ensemble, leaving the session can simply be done. When doing ensemble, it's
+even easier, because you built up redundancy and the rest of the team can continue and people can simply hop off and
+on if it's not too frequently. Theoretical arguments always pretend that this is not possible. Well, I did that,
+all of that, I can assure you that it works. But as always, if you try hard enough you can boycott the system.
+
+### my individual contribution fades
+
+Yes, you won't be the irreplaceable god that your company cannot fire. You won't be the single point of knowledge,
+the single point of failure or the dominating bottleneck anymore. What a pity. If you can't convince your manager
+of your contributions to the team and your value for the company despite that, the problem lies somewhere else.
+
+But seriously. If you are working at a company where this very point is a problem, then I am out of power. If you
+like that way of working, congratulations. If not, you probably need a new company. I never worked for a company
+that really liked single point of knowledge developers. Quite the opposite. It's just that no company
+was in a position to change it - it would have been the developer's and managers jobs to reach that goal.
+
+### but I can just do other work while waiting
+
+In theorey yes, you could. But there are two problems. 
+
+You are describing a context switch. You have to do it once for leaving your old work,
+then again for getting back to the old work when you received your feedback. Let's pray nobody dares to give
+some feedback on the adjustments from the first feedback round, otherwise you would have another two context
+switches. Context switching creates on- and offboarding overhead, it creates stress for people. We may also not
+forget, that it is created for the reviewer as well. So we created at least four context switches, in the most
+optimal case. Just a sidenote, such a system will optimize itself and over time there will be very little
+feedback on MRs so that reviews get faster. In the internet people talk about "nitpicks" - which they are only
+because people decide they are not worth discussing. Which is in turn because in written communication they are
+often experienced as offending. In written communication it's also more difficult to get a common understanding
+and shared values compared to having a 1:1 discussion, which means people tend to just do what they themselves
+like best, declaring it not important enough to, well, talk about it.
+
+Then, you would need to pull in work that is unrelated to what you have been working on. Or at least it may not
+create conflicts with either your own work that is in progress or the other people's work that is in progress.
+If not, you would deliberately create conflicts that need to be resolved later on. So we're doing work multiple
+times, we create risk and we create additional effort in that case. Again a side note. Such a system would optimize
+for not creating conflicts, which means people will create changes in a way that limits conflict with other work in
+progress. This basically prevents any refactoring from happening. I have been in those projects over and over again,
+it's absolutely real, it happens every single time in projects that are driven by asynchronous blocking code reviews.
+
+## Conclusion
+
+In every personal discussion I had, it got clear that the others suffered from lack of experience,
+severe misinformation, blatantly wrong ideas about _good code_ or simply unwillingness to sacrafice their own
+desires for a better result. Of course, nobody likes to admit that, which I see as the reason discussions about
+the topic are as ugly as they are.
+
+As I mentioned, it's not that everyone has to use pair programming all the time and
+that there are no alternatives. There are plenty of workflows, some of which I briefly described above. It's
+perfectly fine to work in isolation with five people on the team and do immediately merged merge request with an even
+optional non-blocking code review. It works well when you have only senior developers on the team and nobody really has
+to learn much from the others. Or when you want to prioritize shipping stuff over shared ownership. We only have to be clear
+and transparent about the downsides as well. And for that, people have to actually _know_ them first, which I would say
+is too often not the case.
+
+Every single developer colleague I was able to get to actually give pairing on a regular basis a try was able to
+at least see the big advantages of it, even when he was in doubt before. Based on feedback I asked for, the vast majority
+enjoyed the sessions and all of them always learned a lot. As mentioned, some poeple have to get used to that way
+of working first and especially in the beginning, are overwhelmed and feel exhausted, simply because they are not
+used to high-frequency feedback, communication in general - and if you ask me they are not used to not getting away
+easily with not learning. Some appreciate that, but some people are simply intimated and feel threatend when they
+realize how much they need to learn.
+
+Having that said, not everyone I worked with went back to pair programming by himself afterwards. And even I myself
+had occasions where it was so hard to achieve it, that I gave up and just swam with the flow and did whatever
+the people in control decided was a good workflow (alas, it never became a good project at all...).
+
+I always wonder why it's so hard to establish something that
+is so obviously producing the better projects in the vast majority of (product) development teams? My current answer
+is that most developers limit the amount of human interaction they have to do, because that's ultimately what stresses them.
+Most of my developer colleagues don't actively care about shared ownership nor do they really care about what others think about
+their code. The one's that _do_, adopt pairing quite fast. What bothers me is that management and business rightfully
+expects shared ownership and collaboration in a team to be practiced and we pretend to pursuade that goal, while in reality
+we don't. Instead we work as isolated as possible and seperate us from each other as often and as fast as we can. I find that
+really sad.
