@@ -1,0 +1,345 @@
+title=AI coding, back to sanity
+date=2026-07-28
+type=post
+tags=design,coding,testing,qa,ai
+status=published
+headline=AI coding, back to sanity
+summary=The AI hype is real, now we have a few months of experience and can reflect a bit
+~~~~~~
+
+Dangerous game nowadays to say or write anything against AI and agentic coding. That's why I will start with a
+baseline statement:
+
+It has always been and will always be part of a software developer's job to to work in his employer's interest,
+implement his values and execute his incentives. That can mean a lot of things, but usually it means executing
+projects and implement products in an economically sane manor, take care of quality, implement feedback
+mechanisms and do all that with a balance of end to end responsibility or hierarchy, depending on how
+the company actually organizes all that.
+
+__Of course__ whatever tool helps pushing the considered values is worth to be considered for usage. It has been
+like that in the past, it will be true in the future.
+
+And still, what we have seen in the market over the last dozen months is just pure insanity - as if 
+we collectively lost our minds and instantly forgot anything we learned in decades of software development in a second.
+
+Let me have a few words of reflection about the situation, without me knowing where exactly it's going.
+
+### The AI promise: lower cost
+
+AI is everywhere for a simple reason: Too many people preach that it will save costs. It doesn't really matter
+whether it's either laying off people to save cost or increase people's productivity to save cost.
+
+I get it. It's reasonable. Everyone wants to have a vital business.
+
+So let's assume for a second it's really the layoff thing that we need to do. We had that in the past already
+multiple times. Who thinks it's a good idea for a company to combine the layoff game with the game of completely changing
+the way development works and worked for decades? Who has ever seen that succeed in the past? What assumptions or
+theories make you think it will now?
+
+### The rise of the scrum catastrophe
+
+The thing in tech is, that we lost the art of being reasonable. When I was working at a consultancy for multiple years, which was one of
+the first jobs in my career, I experienced something that I kind of never found again: sane business and sane
+software development. Not because the coding, the architecture, the development process or whatever was sane.
+But because there was no artificial sandboxes created that told the developers to work over there, while the product people
+sat in a different room and the sales people worked over there and everyone handed over the work to somewone else.
+
+As a developer I naturally did communication with the customer, I had phone calls speaking with them about
+problems arising with their whished-for features, I gave them advice on how changing an agreed upon feature could
+cut off a lot of effort aka costs for them and give them a big part of the expected value nonetheless. The customers
+relied upon me doing honest consultancy, making tradeoffs transparent, understanding their financial situation and
+their values in general. Customers appreciated the honesty - a lot of times they just went with the more costly
+implementation despite me offering a smaller one. Of course it depended on how much they were realistically willing and
+allowed to spend. I enabled them to see our service as an investment. Smaller customers that weren't operating
+in an area where a lot of money sat, needed different solutions and it was my job as a developer to understand it.
+It was necessary for me to create a reasonable offer and translate all that context into an implementation that
+managed to be the best tradeoff so that both sides of the deal were able to have a good business. I had to care
+about the vitality of my company's business.
+
+Fast forward to today, the last 15 years, everyone and his aunt was working under scrum. Sorry, zombie-scrum.
+Because there is still the argument that scrum per se is not bad and cannot be made responsible for how bad stuff went.
+True. But then again, there is no engineering best practice in any of scrum whatsoever. Instead, it infected
+every development team with the distinction into developers and product owners, making sure nobody ever crosses a line.
+Those two groups work in their own schedules, maximizing their isolation from each other. They kept specializing
+in their very own domains, maximizing their isolation from each other. They were made to defend their domains against
+each other, while losing understanding of their respective domains at the same time. The developers lost touch
+with the customers. The product people lost touch with engineering.
+
+Now with AI on the rise, everyone goes back to the idea that developers need to be product people and managers again, because when
+development itself is said to be solved, what else should developers do all day? And conversely, the product
+people are said to be now developers again, because development is said to be solved, so they can take the leftover bits
+as well, it's not much anymore.
+
+I don't know whether I should be happy or sad - finally we have a true chance to get rid of scrum, finally good developers
+can get back into the seat they sat in 15 years ago, finally we can get truly agile.
+
+But I am rather sad, because first of all this is nothing new, it could have happened 10 years ago already. And
+second, it is more or less unrelated to AI whatsoever, we don't need AI for that and we certainly don't need the
+downfall of all the good engineering practices that come with it as we do it.
+
+### The true enabler
+
+The question is why am I convinced of that? Well first of all, I am biased, because I am a developer, so you can
+rightfully assume that I don't know what I am talking about and I am only afraid to lose my job.
+
+But you know, I am a developer and I have years of experience in that area. Even though I personally would have loved it, 
+I never was the developer who just sat isolated in the basement doing low-level coding all day at my company, requiring
+inputs to be absurdly detailed jira tickets so that I can work in my isolation all the day and think about
+the nicest code abstractions. I did that in my spare time excessively, so I found my way to become a very good
+coder as well as a good developer (yes, there's a difference). Of course I consider myself to be one of the good ones.
+
+I always was the developer taking a holistic view on the product, the project, the team, so really what the investment
+and the "assets", properties and values of my company were. That made product people and managers severely happy and they
+weren't used to it, because - I am sorry - not too many developers were able to pull that off, it basically differentiates
+the good ones from the bad ones. The product people had no idea that they could get 80% of the value of a feature for
+20% of the cost, because the developers never made it transparent to them. The developers just thought of their
+side of the equation and of course they were happy to have a lot of work on the table so that they stayed relevant. This
+was especially true when contractors were involved, the majority of them were happy to create ever more work and never
+running out of it. Additionally, I experienced developers becoming defenders of their 100% solution most of the negotiation time,
+making every compromise a big sacrafice and tragedy, usually closing with "we can do that but then it will be bad".
+
+> **_NOTE:_** This is a topic on itself, but it mostly originates in the fact that compromises never meant a multi step process,
+but rather never doing the "valuable but costly stuff", always leaving things on the developer side worse than they could
+have been when not doing any compromises at all. Which is strange, because often compromises are only required because
+a certain functionality needs to be delivered on a certain deadline, which in theory would leave refactoring work and
+further quality assurance left for being done afterwards. Only that after the deadline, the next deadline comes and immediately
+the next, leaving no room to breathe. A problem scrum should innitially solve - which it tried by.... introducing regular
+two-weeks deadlines. Well.
+
+Furthermore, the estimation game drove us further downhill. Work always needed to be estimated, sooner or later converting
+the estimates to an amount of time and people asking uncomfy questions when developers need more time than estimated.
+Resulting in the "safety buffer" baseline estimation we put onto every batch we estimate, balooning estimations,
+making planning and scheduling harder than it ever had to be. In turn resulting in too many people talking all the time
+on how to make the work possible, reporting how it is made possible to the management people who don't understand a thing
+about why all that is, only to track all the work organization, inflating the amount of work further.
+
+Instead of all that machinery, we could use the true enabler that would give is the 5-times-efficiency boost everyone seeks:
+
+__Collaboration and agency.__
+
+Collaboration was and is the key to efficient and quality work. When you read my 
+[post about team topology and collaboration](https://hannomalie.github.io/posts/co-creation.html) model,
+you will see quickly why that is. Agency is something that naturally arises in such a context.
+
+The truth is that AI alone will get us exactly nowhere good. AI finally requires us to fix our working setup and
+collaboration model, that's true. But after we fixed that, do we really need AI in a disruptive way at all?
+If so, what for? What values do we optimize for afterwards? What consequences are we willed to accept in order to maximize
+which values? Who understands what we are actually doing and who is able to make that call at all? The product people
+who either never learned or unlearned engineering? The management people for who the same applies? In which world
+can that really be a good idea?
+
+Let's look at it from the perspective of three groups: The developers, the designers, the product people.
+
+#### The developers
+
+Coding. Every time we talk about AI, we talk about getting rid of coding and the developers. First of all, coding is what most traditional
+developers enjoy the most of their work. That's because it's closely related to building and most developers are builders,
+craftsmen. Removing that part of their work is demoralizing for most - and I just state that, I don't judge. Judgment
+comes when summarizing everything and looking at the value that this cost generates.
+
+Coding (in a good execution) simply iterates the definition of the system. You write executable specifications
+as tests and iteratively shape a system that is able to evolve over time. When a developer does it, he has full control
+and gains the best possible knowledge piece by piece, which is needed to truly understand the system's defintion.
+The full control is needed in order to apply the cleanest judgmenet and this in turn is needed so that a human can
+identify with the judgment, the decisions and this in turn is needed for agency and sense of ownership. Living ownership
+and taking over responsibility is the most effective way to get good projects. People that really stand in for their
+work and get responsibility and freedom at the same time, will be your best ones. And your best ones will create your
+best projects.
+
+There is this wisdom that every sufficiently detailed specification is code. It's still true. Yes, you can write
+specifications in for example gherkin. This is basically plain english and we have that already for 15 years. But there
+is a reason why systems are not _only_ gherkin. Because in gherkin, you only write down what the expectation is for a human
+to understand. The machine doesn't care. Unless you have some magic gherkin-execution-engine instead of a computer
+running instructions. More likely, this magic machine would need to translate gherkin to machine code. And as long as this
+is not a 1:1 mapping - which it isn't, by definition - there is a translation layer that introduces ambiguity and fuzzyness.
+This fuzzyness is what developers bridge by applying coding. And because they do so, they take agency and responsibility
+over the system, because they know that it works and why it works.
+
+Given not every specification of the system can reasonably be gherkin, the full control also enables the devs to shortcut.
+To use a fake dependency instead of the real one, to use a fake user that would never bypass the user interface in order
+to test a backend module, to write very precise property-based tests for an algorithmic function nobody cares about
+but would create expensive malfunctions in the system when changed accidentally. Again, because they do so, 
+they take agency and responsibility over the system, because they know that it works and why it works.
+
+Have you ever seen how a developer talks about and works with code that he inherited, that is suboptimal or bad and
+needs some change, let alone a fix? This is how a developer will work with a project where the AI wrote the code
+and he only wrote specifications as markdown input. It's as if someone else wrote it. He will lack ownership and
+governance.
+
+All this for what? Remove the time that the actual coding takes? First, coding is a very tiny part of the development time.
+So if you want development to be faster, focus on the other 80%, not the 20% coding. Second, if you have ever seen
+Josh Long coding Spring or if you have ever worked with Ruby on Rails, then you would see that there is really very little
+room left for stuff to scrap. It's already practically boilerplate free, we already have mostly dsl-haevy specification
+left. The exact same things that are implemented in a Spring project, I have seen written in spec files for spec driven
+development, just on a less suitable flight level, in pseudo code, imprecise and unsatisfying. Make it make sense for a developer.
+
+When your development times are so high that you want to scrap them, then your company did it wrong. You picked the
+wrong development platform, the wrong framework, the wrong developers, the wrong development process or all of that
+at the same time. AI alone won't solve that for you. It will only hide it from you, and it will be costly. And it will
+nonetheless require you to change the stuff I just iterated.
+
+That doesn't mean generating code is _always_ bad. A particularly good example for generated code is user interfaces.
+They are mostly markup, close to unreviewable, they barely have any true meaning or wisdom in them, they are best evaluated
+with a live app. There's not much value in hand-crafting it.
+
+In other cases, the actual rite of creating the code manually is beneficial, because it immediately creates understanding
+for the developer, it incorporates care and is immediately driven by critical thinking of a developer. Additionally,
+it lets an architecture emerge. Instead of enforcing guardrails that may or may not be meaningful in a certain context,
+the developer can apply judgement directly.
+
+It must be said though: the code is generated slower. No way around it. If speed is what we're after, no matter what,
+than there's nothing else to talk about.
+
+#### The designers
+
+Another misunderstood group. Nobody has to invent designs from scratch. There are extensive design systems, there are
+ui frameworks, thousands of them. If you can not afford or don't want a design that is primarily unique, never seen, well
+then pick a design tool like figma and ensure there is an exporter for that platform of your system. Your designers
+then already have a tool that is the peak of productivity. They already have the sharpest knife and can move the needle
+from fast to extensive with all the control they need in order to... you guessed it, take over agency and responsibility.
+
+Of course you can remove all your designers and have your developers or product people do their job. What do you think will
+be the result? Well, there will be simply no new qualified input in regards to design. This quality will degrade, there is no source
+for it anymore. Instead you will get what the development tool advises, which is most of the time simply _average_.
+In other words, you pick the design that someone else created and that more and more people use. It's like 2010, when
+bootstrap (probably) peaked and every web app looked the same, just different colors. The thing is, we can have that
+already since 2010. If it was a reasonable thing to do, why not just use one of those dozens of dozens of ui toolkits
+and design schemes out there, regardless of AI, if creating a UI is the thing that takes so much time?
+
+#### The product people
+
+As mentioned, product people and developers traditionally have been the same people. This is problematic when the
+actual product stuff was so overcomplicated and the associated communication effort balooned so much that there would
+not be any time left for the developer to actually develop anything.
+
+__If__ you are in such a situation, just correct it and remove the bullshit.
+
+Or if it's resonable, then it's just enough work for two people, or roles.
+That still doesn't mean those two roles can not work closely - and I mean _closely_ - together.
+
+It's just that we need to think about whether it's _too much_ work for a single person or whether it's the _wrong_
+work for a single person. By making it the wrong work for a single person, by definition we cannot merge it back into
+a single person, even if the person could work twice as fast.
+
+If it was never _that_, but only too much work for a single person, I wonder why we ended
+up in the artificial division of product people and developers at all. Given that we never ever had only a single person
+but at least two, three or more developers - surely one or two of them were able to take over the "product work", right?
+
+I often get from people that most developers are not capable of doing something else then programming and are
+incapable of doing product work. Well, you know why that might be? Because developers are treated as coders only.
+Because you don't develop your people. It's a self-fulfilling prediction. Most young developers growing up
+with scrum and merge request based development workflows simply cannot comprehend any other idea of working, be it
+with pairing and ensemble, let alone taking over communication with the customer. It wasn't always like that.
+
+
+## How you can still pull it off
+
+Despite my arguing against it, adopting agentic development is of course still a viable option worth investigating.
+Which reads ridiculous, because in a few months it will probably be laughed about when you don't adopt purely agentic development.
+The essential thing is, that one has to accept the shifting in goals accomplished when applying it and the needed
+adjustments on the development process.
+
+### The agent is the coder
+
+Before, the developer was the coder. Now he isn't anymore. That makes the developer the reviewer, he's next in line.
+
+Before, the develper built up knowledge about the code and coded to let the architecture emerge. The developer has to
+compensate for that, as long as everyone else expects the developer to have knowledge about code and architecture
+of the project. Or in other words, as long as people expect a developer to be responsible for the system. Building
+up that required knowledge is - due to lack of my imagination - only possible by extensive reading. What else is left, if writing
+is off the table? It's reading. This is especially vulnurable to the lgtm effect we already know from merge request
+based development. Reviewing like that quickly reveals the need to get augmented by another, a different, agent.
+This one needs to compensate for the lack of discussion with any colleague, the missing perspective, the missing knowledge,
+the missing exchange and fresh air in the room. The second pair of eyes that can still see the slips.
+
+### Handle amount of generated code
+
+The agent can generate amounts of code much faster than any human (other than Josh Long). This simple observation
+means that we can not keep our old development process of reviewing line by line thouroughly. We would render the
+gained efficiency advantage obsolete. It means also, that we need a new way to ensure the created code does what
+it should and does not what it should not. Well, this one is tricky. Because state of the art is, that you have
+an extensive enough test suite that reliably ensures it. This only works if you either wrote the tests yourself by hand
+of spent an extensive amount of attention having it created by or co-created by an agent. And then again,
+there will always be aspects missing from those tests - performance being the most prominent one, edge cases another one,
+simply misunderstood specifications another one. Additionally, user interface tests are comparably slow, so you
+probably don't want the agent to incorporate it in every single change, leaving again some risk on the table.
+If only a human would be in the loop, he would apply judgment and at the same time take responsibility - when the
+agent applies judgment and the human should take responsibility, this situation get's tricky. Alas, the required high-quality
+tests require a big step-up for developers, most developers I met are not remotely capable of pulling of tests on a level
+we would require now.
+
+### Skip collaboration
+
+If companies don't want to pay that many people, if companies want to combine all the roles into a single blob and
+have as few people as possible operate that setup, well, why not being honest and skip the collaboration part completely?
+Even before, the fastest result was achieved by putting a single, routhless person in place, stop bothering him
+with interuptions, collaborations, tickets, knowledge sharing initiatives and quality assurance aspects. It created the so called
+hero projects or submarines that out of a sudden existed and needed to get integrated in the company landscape somehow,
+which ususally was painful for everyone.
+
+We can now do those one-person projects with much higher quality, because the agent can be the coder, the reviewer(-help)
+and the universal consultant of all other aspects. You should only not make the mistake to see the result as anything else
+than it is: A single person project. You will be fast. And you will end up with lots of single person projects. And the
+only way to work with them is with the single person setup, this is Conway's law that still applies.
+
+In fact, most of the positive takes about agentic coding I see, is coming from consultants who are often solo developers
+on a project for a limited amount of time. Or people doing a project in their spare time, alone. In a team, such egocentric
+development processes work terrible. They work terrible, because collaboration actually slows the whole process down.
+Let's face it up-headed. Let's skip collaboration, we don't need it in a workflow that is optimized for single-person work.
+But please don't pretend.
+
+### Increase autonomy
+
+Single-person work also means handovers will slow down the process disproportionally. When you can generate 10 features
+in an hour, but every question towards your product owner takes 15 minutes, then it wil slow you down to 2 features per hour
+and a lot of back and forth. Let alone the context switches both persons have to make, which is exhausting. Let alone
+the fact that it's usually not 15 minutes but a day or more until you get to talk to your product owner in our beloved
+normal enterprise projects.
+
+In fact, when you are a fast developer, this also shows up without AI - as many other things do. When such a fast developer
+is allowed to make decisions that are not that critical by himself and maybe just put it into a log and talk about it
+with the product owner some weeks later after the fact, this makes a big difference in overall development speed.
+
+### Make the repository the backlog
+
+Agentic coding works best when stuff is local. Everyone who tries to do microservices development with it knows what I mean,
+and probably whishes back the monoliths. Locality is also recommended for what we use jira for. Why seperate the usecases
+from the executable specifications that cover that usecase? The agent can very well detect drift between the two, even
+on purpose change the test when the usecase was changed, for example by the product owner. Why keep the artificial
+handover through Jira when the product owner wants to initiate a change? The usecase description can be right there,
+versioned, single source of truth. Given that, a lot of things never should have ended up in the Jira backlog at all,
+like refactorings, or creating a command line tool for easier maintainance. Those tasks are part of the regular development
+work and should be done when they make the current task simpler. Where is _make the change easy and then make the easy change_?
+Refactorings and small tasks can be implemented faster than ever, increasing the overhead that Jira and refinements and discussions
+and what not impose. Let's make use of that. Btw, that's again true whether AI is used or not. I achieved great results
+with that approach.
+
+### Balance speed and quality gains
+
+Faster is not always the desired outcome. Going faster always comes at the expanse of other aspects. When the developer
+skips reading any code and also skips reading the tests and always ever look at some rough specifications, then
+it will probably be the fastest possible process. But the developer won't be able to answer any question at all
+about the project. Is it Bun or Nodejs? Are we using JPA and handle our database transactions correctly? Do we
+have any tests with high enough fidelity that database stuff is at all covered by tests? Is whatever persistence
+was chosen capable of doing migrations?
+
+Maybe it's a good idea to not optimize solely for speed, but implement a process that gives the developer time to
+build up a reasonable amount of understanding and confidence about the system he had the agent built.
+
+## Closing words
+
+The more I think about the past years, the more I realize that I mostly complained about the development processes
+I had to do at work. This is about merge request reviews, scrum and Jira. Of course I am extremely sceptical of
+single-person projects, because I _know_ they will cause pain when companies try to integrate them into what have been or still are
+the "normal" development team setups. And that's also why I am sceptical about what AI brings to the table. It's not
+the technical aspects of it - they are mostly undeniable. It's the social aspects. The rise of single-person
+projects that get thrown over the fence. Including what indeed is _not_ simple to change. For example big amounts
+of complicated and distributed persisted data.
+
+There's a lot of extremes pushed currently. The front liners propagating that spec driven development and vibe coding
+is the only true answer, the final one. Currently, I doubt it. Like it was back then: Not everyone needs to be at the bleeding edge.
+When microservices became the bleeding edge, there were plenty of companies, people, projects, that were good off
+staying with their monoliths. Currently, I think that we don't necessarily need to change all that much about how we develop.
+Just adding agents and replace your dumb code reviews with it will probably give you a factor 5 easily. And it will also
+increase the quality of your code when used appropriately, increase your security. You can have a pretty big bang for the buck
+with close to no risk. Maybe let's start with that?
