@@ -1,5 +1,5 @@
 title=Test Desiderata
-date=2026-20-05
+date=2026-05-20
 type=post
 tags=design,coding,testing,qa
 status=published
